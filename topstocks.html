@@ -97,36 +97,37 @@ let mid_opacity = 0.2;
 let showCategory = 'Show all';
 let svg;
 
+// Data
 <script src='https://jeffreytsaoprivate.github.io/stocks/topstocks.js'></script>
 
 data.forEach(d => {
-    if (d.sector.endsWith('Basic Materials')) {
-        d.color = '#FFECD1';
-    } else if (d.sector.endsWith('Communication Services')) {
-        d.color = '#F00000';
-    } else if (d.sector.endsWith('Consumer Cyclical')) {
-        d.color = '#0080FF';
-    } else if (d.sector.endsWith('Consumer Defensive')) {
-        d.color = '#80FF00';
-    } else if (d.sector.endsWith('Energy')) {
-        d.color = '#C0C000';
-    } else if (d.sector.endsWith('Financial Services')) {
-        d.color = '#00FF00';
-    } else if (d.sector.endsWith('Healthcare')) {
-        d.color = '#008000';
-    } else if (d.sector.endsWith('Industrials')) {
-        d.color = '#C0C0C0';
-    } else if (d.sector.endsWith('Real Estate')) {
-        d.color = '#800080';
-    } else if (d.sector.endsWith('Technology')) {
-        d.color = '#0000FF';
-    } else if (d.sector.endsWith('Utilities')) {
-        d.color = '#808080';
-    } else {
-        d.color = '#000000';
-    }
-    d.outlinecolor = '#000000';
-    d.opacity = 1;
+  if (d.sector.endsWith('Basic Materials')) {
+    d.color = '#FFECD1';
+  } else if (d.sector.endsWith('Communication Services')) {
+    d.color = '#F00000';
+  } else if (d.sector.endsWith('Consumer Cyclical')) {
+    d.color = '#0080FF';
+  } else if (d.sector.endsWith('Consumer Defensive')) {
+    d.color = '#80FF00';
+  } else if (d.sector.endsWith('Energy')) {
+    d.color = '#C0C000';
+  } else if (d.sector.endsWith('Financial Services')) {
+    d.color = '#00FF00';
+  } else if (d.sector.endsWith('Healthcare')) {
+    d.color = '#008000';
+  } else if (d.sector.endsWith('Industrials')) {
+    d.color = '#C0C0C0';
+  } else if (d.sector.endsWith('Real Estate')) {
+    d.color = '#800080';
+  } else if (d.sector.endsWith('Technology')) {
+    d.color = '#0000FF';
+  } else if (d.sector.endsWith('Utilities')) {
+    d.color = '#808080';
+  } else {
+    d.color = '#000000';
+  }
+  d.outlinecolor = '#000000';
+  d.opacity = 1;
 });
 const width = 800;
 const height = 600;
@@ -136,328 +137,328 @@ const categorycolors = ['#ffffff', '#FFECD1', '#F00000', '#0080FF', '#80FF00', '
 const categoryfontcolors = ['#000', '#000', '#fff', '#fff', '#000', '#fff', '#000', '#fff', '#000', '#fff', '#fff', '#fff', '#fff'];
 
 function createCategoryButtons(container, options, optioncolors, optionfontcolors) {
-    options.forEach((option, index) => {
-        const input = document.createElement('input');
-        input.type = 'radio';
-        input.name = 'option';
-        input.value = option;
-        input.checked = (index == 0);
-        input.id = `option-${index}`;
-        const label = document.createElement('label');
-        label.htmlFor = `option-${index}`;
-        label.innerHTML = option;
-        label.value = option;
-        label.style.color = optionfontcolors[index];
-        label.style.backgroundColor = categorycolors[index];
-        label.classList.add('category-button');
-        if (index == 0) label.classList.add('checked');
-        container.appendChild(input);
-        container.appendChild(label);
+  options.forEach((option, index) => {
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = 'option';
+    input.value = option;
+    input.checked = (index == 0);
+    input.id = `option-${index}`;
+    const label = document.createElement('label');
+    label.htmlFor = `option-${index}`;
+    label.innerHTML = option;
+    label.value = option;
+    label.style.color = optionfontcolors[index];
+    label.style.backgroundColor = categorycolors[index];
+    label.classList.add('category-button');
+    if (index == 0) label.classList.add('checked');
+    container.appendChild(input);
+    container.appendChild(label);
+  });
+  const categoryButtons = document.querySelectorAll('.category-button');
+  categoryButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      categoryButtons.forEach(btn => btn.classList.remove('checked'));
+      button.classList.add('checked');
     });
-    const categoryButtons = document.querySelectorAll('.category-button');
-    categoryButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            categoryButtons.forEach(btn => btn.classList.remove('checked'));
-            button.classList.add('checked');
-        });
-    });
+  });
 }
 
 function changeCategory() {
-    const button = document.querySelector('input[name=\'option\']:checked');
-    const selectedOption = button.value;
-    if (showCategory == selectedOption) {
-        showCategory = 'Show all';
-        const categoryButtons = document.querySelectorAll('.category-button');
-        categoryButtons.forEach(button => {
-            button.classList.remove('checked');
-            if (button.value == 'Show all') button.classList.add('checked');
-        });
-    } else {
-        showCategory = selectedOption;
-    }
-    highlightItem = null;
-    hideTooltip();
-    updateOpacity();
-    updateGraphics();
-    sortTable('datatable', 0, true);
+  const button = document.querySelector('input[name=\'option\']:checked');
+  const selectedOption = button.value;
+  if (showCategory == selectedOption) {
+    showCategory = 'Show all';
+    const categoryButtons = document.querySelectorAll('.category-button');
+    categoryButtons.forEach(button => {
+      button.classList.remove('checked');
+      if (button.value == 'Show all') button.classList.add('checked');
+    });
+  } else {
+    showCategory = selectedOption;
+  }
+  highlightItem = null;
+  hideTooltip();
+  updateOpacity();
+  updateGraphics();
+  sortTable('datatable', 0, true);
 }
 
 function updateOpacity() {
-    if (highlightItem == null) {
-        if (showCategory == 'Show all') {
-            data.forEach(d => {
-                d.opacity = 1;
-            });
-        } else {
-            data.forEach(d => {
-                d.opacity = (d.sector.endsWith(showCategory) ? 1 : lo_opacity);
-            });
-        }
+  if (highlightItem == null) {
+    if (showCategory == 'Show all') {
+      data.forEach(d => {
+        d.opacity = 1;
+      });
     } else {
-        if (showCategory == 'Show all') {
-            data.forEach(d => {
-                d.opacity = (d.name == highlightItem ? 1 : lo_opacity);
-            });
-        } else {
-            data.forEach(d => {
-                d.opacity = (d.name == highlightItem ? 1 : (d.sector.endsWith(showCategory) ? mid_opacity : lo_opacity));
-            });
-        }
+      data.forEach(d => {
+        d.opacity = (d.sector.endsWith(showCategory) ? 1 : lo_opacity);
+      });
     }
+  } else {
+    if (showCategory == 'Show all') {
+      data.forEach(d => {
+        d.opacity = (d.name == highlightItem ? 1 : lo_opacity);
+      });
+    } else {
+      data.forEach(d => {
+        d.opacity = (d.name == highlightItem ? 1 : (d.sector.endsWith(showCategory) ? mid_opacity : lo_opacity));
+      });
+    }
+  }
 }
 createCategoryButtons(document.getElementById('category-container'), viewcategories, categorycolors, categoryfontcolors);
 const radioButtons = document.querySelectorAll('input[name=\'option\']');
 radioButtons.forEach(radioButton => {
-    radioButton.addEventListener('click', changeCategory);
+  radioButton.addEventListener('click', changeCategory);
 });
 
 function updateGraphics() {
-    updateBubbleChart();
-    updateTable();
-    if (filterItem != '') filterTable('datatable');
+  updateBubbleChart();
+  updateTable();
+  if (filterItem != '') filterTable('datatable');
 }
 
 function updateBubbleChart() {
-    const xExtent = [0, d3.max(data, d => d.change)];
-    const yExtent = [d3.min(data, d => d.drop), 0];
-    const xScale = d3.scaleLinear().domain(xExtent).range([100, width - 100]);
-    const yScale = d3.scaleLinear().domain(yExtent).range([height - 50, 50]);
-    const radiusScale = d3.scaleSqrt().domain(d3.extent(data, d => d.mktcap)).range([2, 20]);
-    svg.selectAll('*').remove();
-    if (true) {
-        const textData = [{
-            x: (xExtent[0] + xExtent[1]) / 2,
-            y: yExtent[1],
-            text: 'Expected annual growth (%)',
-            anchorpos: 'middle',
-            angle: 0,
-            dx: '0',
-            dy: '-20'
-        }, {
-            x: xExtent[0],
-            y: (yExtent[0] + yExtent[1]) / 2,
-            text: 'Drop from 52-wk high (%)',
-            anchorpos: 'middle',
-            angle: -90,
-            dx: '0',
-            dy: '-40'
-        }, ];
-        svg.selectAll('text').data(textData).enter().append('text').attr('transform', d => 'rotate(' + d.angle + ' ' + xScale(d.x) + ' ' + yScale(d.y) + ')').attr('x', d => xScale(d.x)).attr('y', d => yScale(d.y)).text(d => d.text).attr('fill', 'black').attr('text-anchor', d => d.anchorpos).attr('dx', d => d.dx).attr('dy', d => d.dy).style('font-weight', 'bold');
-    }
-    if (true) {
-        svg.append('g').attr('class', 'x-axis').attr('transform', 'translate(0,50)').call(d3.axisBottom(xScale));
-        svg.append('g').attr('class', 'y-axis').attr('transform', 'translate(100,0)').call(d3.axisLeft(yScale));
-    }
-    if (showCategory == 'Show all') {
-        data_filtered = data.filter(d => d.opacity != 1);
-        bubbles = svg.selectAll('circle').data(data_filtered).enter().append('circle').on('click', pickItem).attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', d => (d.opacity == 1 ? 'grey' : 'none')).attr('stroke-width', 1);
-        data_filtered = data.filter(d => d.opacity == 1);
-        bubbles = svg.selectAll('circle1').data(data_filtered).enter().append('circle').on('mouseover', showTooltip).on('mousemove', showTooltip).on('click', pickItem).on('mouseout', hideTooltip).attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', d => (d.opacity == 1 ? 'grey' : 'none')).attr('stroke-width', 1);
-    } else {
-        data_filtered = data.filter(d => d.opacity != 1 && d.sector.endsWith(showCategory) == false);
-        bubbles = svg.selectAll('circle').data(data_filtered).enter().append('circle').attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'none').attr('stroke-width', 1);
-        data_filtered = data.filter(d => d.opacity != 1 && d.sector.endsWith(showCategory));
-        bubbles = svg.selectAll('circle1').data(data_filtered).enter().append('circle').on('click', pickItem).attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'none').attr('stroke-width', 1);
-        data_filtered = data.filter(d => d.opacity == 1);
-        bubbles = svg.selectAll('circle2').data(data_filtered).enter().append('circle').on('mouseover', showTooltip).on('mousemove', showTooltip).on('click', pickItem).on('mouseout', hideTooltip).attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'grey').attr('stroke-width', 1);
-    }
-    svg.on('click', clickChart);
+  const xExtent = [0, d3.max(data, d => d.change)];
+  const yExtent = [d3.min(data, d => d.drop), 0];
+  const xScale = d3.scaleLinear().domain(xExtent).range([100, width - 100]);
+  const yScale = d3.scaleLinear().domain(yExtent).range([height - 50, 50]);
+  const radiusScale = d3.scaleSqrt().domain(d3.extent(data, d => d.mktcap)).range([2, 20]);
+  svg.selectAll('*').remove();
+  if (true) {
+    const textData = [{
+      x: (xExtent[0] + xExtent[1]) / 2,
+      y: yExtent[1],
+      text: 'Expected annual growth (%)',
+      anchorpos: 'middle',
+      angle: 0,
+      dx: '0',
+      dy: '-20'
+    }, {
+      x: xExtent[0],
+      y: (yExtent[0] + yExtent[1]) / 2,
+      text: 'Drop from 52-wk high (%)',
+      anchorpos: 'middle',
+      angle: -90,
+      dx: '0',
+      dy: '-40'
+    }, ];
+    svg.selectAll('text').data(textData).enter().append('text').attr('transform', d => 'rotate(' + d.angle + ' ' + xScale(d.x) + ' ' + yScale(d.y) + ')').attr('x', d => xScale(d.x)).attr('y', d => yScale(d.y)).text(d => d.text).attr('fill', 'black').attr('text-anchor', d => d.anchorpos).attr('dx', d => d.dx).attr('dy', d => d.dy).style('font-weight', 'bold');
+  }
+  if (true) {
+    svg.append('g').attr('class', 'x-axis').attr('transform', 'translate(0,50)').call(d3.axisBottom(xScale));
+    svg.append('g').attr('class', 'y-axis').attr('transform', 'translate(100,0)').call(d3.axisLeft(yScale));
+  }
+  if (showCategory == 'Show all') {
+    data_filtered = data.filter(d => d.opacity != 1);
+    bubbles = svg.selectAll('circle').data(data_filtered).enter().append('circle').on('click', pickItem).attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', d => (d.opacity == 1 ? 'grey' : 'none')).attr('stroke-width', 1);
+    data_filtered = data.filter(d => d.opacity == 1);
+    bubbles = svg.selectAll('circle1').data(data_filtered).enter().append('circle').on('mouseover', showTooltip).on('mousemove', showTooltip).on('click', pickItem).on('mouseout', hideTooltip).attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', d => (d.opacity == 1 ? 'grey' : 'none')).attr('stroke-width', 1);
+  } else {
+    data_filtered = data.filter(d => d.opacity != 1 && d.sector.endsWith(showCategory) == false);
+    bubbles = svg.selectAll('circle').data(data_filtered).enter().append('circle').attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'none').attr('stroke-width', 1);
+    data_filtered = data.filter(d => d.opacity != 1 && d.sector.endsWith(showCategory));
+    bubbles = svg.selectAll('circle1').data(data_filtered).enter().append('circle').on('click', pickItem).attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'none').attr('stroke-width', 1);
+    data_filtered = data.filter(d => d.opacity == 1);
+    bubbles = svg.selectAll('circle2').data(data_filtered).enter().append('circle').on('mouseover', showTooltip).on('mousemove', showTooltip).on('click', pickItem).on('mouseout', hideTooltip).attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'grey').attr('stroke-width', 1);
+  }
+  svg.on('click', clickChart);
 }
 
 function updateTable() {
-    const container = document.getElementById('table-container');
-    const table = document.createElement('table');
-    table.className = 'datatable';
-    table.id = 'datatable';
-    const thead = document.createElement('thead');
-    const headerRow = document.createElement('tr');
-    const columns = ['Rank', 'Company', 'Sector', 'Market Cap', 'Expected annual growth', 'Drop from 52-wk high'];
-    const columnwidth = ['5%', '50%', '20%', '5%', '10%', '10%'];
-    columns.forEach((column, index) => {
-        const th = document.createElement('th');
-        th.dataset.index = index;
-        th.innerHTML = column + (index == 1 ? '&nbsp;&nbsp;' + '<input type=\'text\' id=\'filterName\' placeholder=\'Filter by name\' value=\'' + filterItem + '\'>' + '<button id=\'filterNameCancel\'>X</button>' : '') + '<BR>' + '<A onclick=\'sortTable(\"datatable\",' + index + ',true )\'>&#9650;</A>' + '<A onclick=\'sortTable(\"datatable\",' + index + ',false)\'>&#9660;</A>';
-        th.style.width = columnwidth[index];
-        headerRow.appendChild(th);
+  const container = document.getElementById('table-container');
+  const table = document.createElement('table');
+  table.className = 'datatable';
+  table.id = 'datatable';
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  const columns = ['Rank', 'Company', 'Sector', 'Market Cap', 'Expected annual growth', 'Drop from 52-wk high'];
+  const columnwidth = ['5%', '50%', '20%', '5%', '10%', '10%'];
+  columns.forEach((column, index) => {
+    const th = document.createElement('th');
+    th.dataset.index = index;
+    th.innerHTML = column + (index == 1 ? '&nbsp;&nbsp;' + '<input type=\'text\' id=\'filterName\' placeholder=\'Filter by name\' value=\'' + filterItem + '\'>' + '<button id=\'filterNameCancel\'>X</button>' : '') + '<BR>' + '<A onclick=\'sortTable(\"datatable\",' + index + ',true )\'>&#9650;</A>' + '<A onclick=\'sortTable(\"datatable\",' + index + ',false)\'>&#9660;</A>';
+    th.style.width = columnwidth[index];
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+  if (true) {
+    const tbody = document.createElement('tbody');
+    data.forEach(d => {
+      if (d.opacity != lo_opacity) {
+        const tr = document.createElement('tr');
+        td = document.createElement('td');
+        td.textContent = d.rank;
+        if (d.opacity == mid_opacity) td.style.color = '#A0A0A0';
+        tr.appendChild(td);
+        td = document.createElement('td');
+        td.textContent = d.name;
+        if (d.opacity == mid_opacity) td.style.color = '#A0A0A0';
+        tr.appendChild(td);
+        td = document.createElement('td');
+        td.textContent = d.sector;
+        if (d.opacity == mid_opacity) td.style.color = '#A0A0A0';
+        tr.appendChild(td);
+        td = document.createElement('td');
+        td.textContent = (d.mktcap > 1000000000000 ? (d.mktcap / 1000000000000).toFixed(1) + 'T' : (d.mktcap > 1000000000 ? (d.mktcap / 1000000000).toFixed(1) + 'B' : (d.mktcap > 1000000 ? (d.mktcap / 1000000).toFixed(1) + 'M' : d.mktcap.toFixed(0))));
+        if (d.opacity == mid_opacity) td.style.color = '#A0A0A0';
+        tr.appendChild(td);
+        td = document.createElement('td');
+        td.textContent = d.change.toFixed(1) + '%';
+        if (d.opacity == mid_opacity) td.style.color = '#A0A0A0';
+        tr.appendChild(td);
+        td = document.createElement('td');
+        td.textContent = d.drop.toFixed(1) + '%';
+        if (d.opacity == mid_opacity) td.style.color = '#A0A0A0';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      }
     });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-    if (true) {
-        const tbody = document.createElement('tbody');
-        data.forEach(d => {
-            if (d.opacity != lo_opacity) {
-                const tr = document.createElement('tr');
-                td = document.createElement('td');
-                td.textContent = d.rank;
-                if (d.opacity == mid_opacity) td.style.color = '#A0A0A0';
-                tr.appendChild(td);
-                td = document.createElement('td');
-                td.textContent = d.name;
-                if (d.opacity == mid_opacity) td.style.color = '#A0A0A0';
-                tr.appendChild(td);
-                td = document.createElement('td');
-                td.textContent = d.sector;
-                if (d.opacity == mid_opacity) td.style.color = '#A0A0A0';
-                tr.appendChild(td);
-                td = document.createElement('td');
-                td.textContent = (d.mktcap > 1000000000000 ? (d.mktcap / 1000000000000).toFixed(1) + 'T' : (d.mktcap > 1000000000 ? (d.mktcap / 1000000000).toFixed(1) + 'B' : (d.mktcap > 1000000 ? (d.mktcap / 1000000).toFixed(1) + 'M' : d.mktcap.toFixed(0))));
-                if (d.opacity == mid_opacity) td.style.color = '#A0A0A0';
-                tr.appendChild(td);
-                td = document.createElement('td');
-                td.textContent = d.change.toFixed(1) + '%';
-                if (d.opacity == mid_opacity) td.style.color = '#A0A0A0';
-                tr.appendChild(td);
-                td = document.createElement('td');
-                td.textContent = d.drop.toFixed(1) + '%';
-                if (d.opacity == mid_opacity) td.style.color = '#A0A0A0';
-                tr.appendChild(td);
-                tbody.appendChild(tr);
-            }
-        });
-        table.appendChild(tbody);
+    table.appendChild(tbody);
+  }
+  container.innerHTML = '';
+  container.appendChild(table);
+  table.addEventListener('click', (event) => {
+    const target = event.target;
+    if (target.tagName === 'TD') {
+      const row = target.parentNode;
+      const firstCell = row.cells[1];
+      const content = firstCell.textContent;
+      if (highlightItem == content) {
+        highlightItem = null;
+      } else {
+        highlightItem = content;
+      }
+      updateOpacity();
+      updateGraphics();
     }
-    container.innerHTML = '';
-    container.appendChild(table);
-    table.addEventListener('click', (event) => {
-        const target = event.target;
-        if (target.tagName === 'TD') {
-            const row = target.parentNode;
-            const firstCell = row.cells[1];
-            const content = firstCell.textContent;
-            if (highlightItem == content) {
-                highlightItem = null;
-            } else {
-                highlightItem = content;
-            }
-            updateOpacity();
-            updateGraphics();
-        }
-    });
-    document.getElementById('filterName').addEventListener('keyup', function() {
-        filterTable('datatable');
-    });
-    document.getElementById('filterNameCancel').addEventListener('click', function() {
-        document.getElementById('filterName').value = '';
-        filterTable('datatable');
-    });
-    return table;
+  });
+  document.getElementById('filterName').addEventListener('keyup', function() {
+    filterTable('datatable');
+  });
+  document.getElementById('filterNameCancel').addEventListener('click', function() {
+    document.getElementById('filterName').value = '';
+    filterTable('datatable');
+  });
+  return table;
 }
 
 function filterTable(tableid) {
-    const table = document.getElementById(tableid);
-    const tbody = table.querySelector('tbody');
-    const filterInput = document.getElementById('filterName');
-    filterItem = filterInput.value;
-    const filterValue = filterItem.toLowerCase();
-    const rows = tbody.getElementsByTagName('tr');
-    for (let i = 0; i < rows.length; i++) {
-        const nameCell = rows[i].getElementsByTagName('td')[1];
-        const name = nameCell.textContent.toLowerCase();
-        if (name.includes(filterValue)) {
-            rows[i].style.display = '';
-        } else {
-            rows[i].style.display = 'none';
-        }
+  const table = document.getElementById(tableid);
+  const tbody = table.querySelector('tbody');
+  const filterInput = document.getElementById('filterName');
+  filterItem = filterInput.value;
+  const filterValue = filterItem.toLowerCase();
+  const rows = tbody.getElementsByTagName('tr');
+  for (let i = 0; i < rows.length; i++) {
+    const nameCell = rows[i].getElementsByTagName('td')[1];
+    const name = nameCell.textContent.toLowerCase();
+    if (name.includes(filterValue)) {
+      rows[i].style.display = '';
+    } else {
+      rows[i].style.display = 'none';
     }
+  }
 }
 
 function sortTable(tableid, columnIndex, ascending = true) {
-    const table = document.getElementById(tableid);
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-    if (columnIndex == 0 || columnIndex == 4 || columnIndex == 5) {
-        rows.sort((a, b) => {
-            const cellA = parseInt(a.cells[columnIndex].textContent);
-            const cellB = parseInt(b.cells[columnIndex].textContent);
-            if (ascending) {
-                return (cellA < cellB ? -1 : (cellA > cellB ? 1 : 0))
-            } else {
-                return (cellA < cellB ? 1 : (cellA > cellB ? -1 : 0))
-            }
-        });
-    } else if (columnIndex == 3) {
-        rows.sort((a, b) => {
-            const strA = a.cells[columnIndex].textContent;
-            const strB = b.cells[columnIndex].textContent;
-            const cellA = (strA.charAt(strA.length - 1) == 'T' ? parseInt(strA.slice(0, -1)) * 1000000000000 : (strA.charAt(strA.length - 1) == 'B' ? parseInt(strA.slice(0, -1)) * 1000000000 : (strA.charAt(strA.length - 1) == 'M' ? parseInt(strA.slice(0, -1)) * 1000000 : parseInt(strA))));
-            const cellB = (strB.charAt(strB.length - 1) == 'T' ? parseInt(strB.slice(0, -1)) * 1000000000000 : (strB.charAt(strB.length - 1) == 'B' ? parseInt(strB.slice(0, -1)) * 1000000000 : (strB.charAt(strB.length - 1) == 'M' ? parseInt(strB.slice(0, -1)) * 1000000 : parseInt(strB))));
-            if (ascending) {
-                return (cellA < cellB ? -1 : (cellA > cellB ? 1 : 0))
-            } else {
-                return (cellA < cellB ? 1 : (cellA > cellB ? -1 : 0))
-            }
-        });
-    } else {
-        rows.sort((a, b) => {
-            const cellA = a.cells[columnIndex].textContent;
-            const cellB = b.cells[columnIndex].textContent;
-            const compare = cellA.localeCompare(cellB);
-            return ascending ? compare : -compare;
-        });
-    }
-    tbody.innerHTML = '';
-    rows.forEach(row => tbody.appendChild(row));
-    const th = document.querySelector(`th[data-index='${columnIndex}']`);
-    th.dataset.sorted = ascending ? 'desc' : 'asc';
+  const table = document.getElementById(tableid);
+  const tbody = table.querySelector('tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  if (columnIndex == 0 || columnIndex == 4 || columnIndex == 5) {
+    rows.sort((a, b) => {
+      const cellA = parseInt(a.cells[columnIndex].textContent);
+      const cellB = parseInt(b.cells[columnIndex].textContent);
+      if (ascending) {
+        return (cellA < cellB ? -1 : (cellA > cellB ? 1 : 0))
+      } else {
+        return (cellA < cellB ? 1 : (cellA > cellB ? -1 : 0))
+      }
+    });
+  } else if (columnIndex == 3) {
+    rows.sort((a, b) => {
+      const strA = a.cells[columnIndex].textContent;
+      const strB = b.cells[columnIndex].textContent;
+      const cellA = (strA.charAt(strA.length - 1) == 'T' ? parseInt(strA.slice(0, -1)) * 1000000000000 : (strA.charAt(strA.length - 1) == 'B' ? parseInt(strA.slice(0, -1)) * 1000000000 : (strA.charAt(strA.length - 1) == 'M' ? parseInt(strA.slice(0, -1)) * 1000000 : parseInt(strA))));
+      const cellB = (strB.charAt(strB.length - 1) == 'T' ? parseInt(strB.slice(0, -1)) * 1000000000000 : (strB.charAt(strB.length - 1) == 'B' ? parseInt(strB.slice(0, -1)) * 1000000000 : (strB.charAt(strB.length - 1) == 'M' ? parseInt(strB.slice(0, -1)) * 1000000 : parseInt(strB))));
+      if (ascending) {
+        return (cellA < cellB ? -1 : (cellA > cellB ? 1 : 0))
+      } else {
+        return (cellA < cellB ? 1 : (cellA > cellB ? -1 : 0))
+      }
+    });
+  } else {
+    rows.sort((a, b) => {
+      const cellA = a.cells[columnIndex].textContent;
+      const cellB = b.cells[columnIndex].textContent;
+      const compare = cellA.localeCompare(cellB);
+      return ascending ? compare : -compare;
+    });
+  }
+  tbody.innerHTML = '';
+  rows.forEach(row => tbody.appendChild(row));
+  const th = document.querySelector(`th[data-index='${columnIndex}']`);
+  th.dataset.sorted = ascending ? 'desc' : 'asc';
 }
 
 function showTooltip(event, d) {
-    const tooltip = d3.select('#tooltip');
-    if (d.opacity == 1) {
-        const mktcaptxt = (d.mktcap > 1000000000000 ? (d.mktcap / 1000000000000).toFixed(1) + 'T' : (d.mktcap > 1000000000 ? (d.mktcap / 1000000000).toFixed(1) + 'B' : (d.mktcap > 1000000 ? (d.mktcap / 1000000).toFixed(1) + 'M' : d.mktcap.toFixed(0))));
-        const quotedArray = [];
-        for (let i = 0; i < d.date.length; i++) {
-            quotedArray.push(`'${d.date[i]}'`);
-        }
-        const imgsrctxt = `https://quickchart.io/chart?w=120&h=100&c={type:'line',options:{legend:false,title:{display:false},scales:{yAxes:[{ticks:{fontSize:8,stepSize:20}}],xAxes:[{display:true,ticks:{fontSize:8,autoSkip:true}}]},plugins:{tickFormat:{suffix:'%'}}},data:{labels:[${quotedArray}],datasets:[
+  const tooltip = d3.select('#tooltip');
+  if (d.opacity == 1) {
+    const mktcaptxt = (d.mktcap > 1000000000000 ? (d.mktcap / 1000000000000).toFixed(1) + 'T' : (d.mktcap > 1000000000 ? (d.mktcap / 1000000000).toFixed(1) + 'B' : (d.mktcap > 1000000 ? (d.mktcap / 1000000).toFixed(1) + 'M' : d.mktcap.toFixed(0))));
+    const quotedArray = [];
+    for (let i = 0; i < d.date.length; i++) {
+      quotedArray.push(`'${d.date[i]}'`);
+    }
+    const imgsrctxt = `https://quickchart.io/chart?w=120&h=100&c={type:'line',options:{legend:false,title:{display:false},scales:{yAxes:[{ticks:{fontSize:8,stepSize:20}}],xAxes:[{display:true,ticks:{fontSize:8,autoSkip:true}}]},plugins:{tickFormat:{suffix:'%'}}},data:{labels:[${quotedArray}],datasets:[
 {data:[${d.loss}],fill:false,borderColor:'%23c00000',borderDash:[1,1],borderWidth:1,pointRadius:0},
 {data:[${d.traj}],fill:false,borderColor:'blue',borderDash:[3,3],borderWidth:0.5,pointRadius:0},
 {data:[${d.price}],fill:false,borderColor:'blue',borderWidth:1,pointRadius:0}]}}`;
-        tooltip.html(`<TABLE class=tooltip><TR><TD COLSPAN=2>${d.rank}. <strong>${d.name}</strong></TD></TR><TR><TD COLSPAN=2><FONT COLOR=#808080>${d.sector}</FONT></TD></TR><TR><TD>Expected annual growth</TD><TD>${d.change}%</TD></TR><TR><TD>10%-ile drop from 52wk high</TD><TD>${d.drop}%</TD></TR><TR><TD>Market cap</TD><TD>${mktcaptxt}</TD></TR><TR><TD colspan=2><img src=\"${imgsrctxt}\"></TD></TR></TABLE>`).style('left', (event.pageX + 10) + 'px').style('top', (event.pageY - 20) + 'px').style('display', null).style('opacity', 1);
-    }
+    tooltip.html(`<TABLE class=tooltip><TR><TD COLSPAN=2>${d.rank}. <strong>${d.name}</strong></TD></TR><TR><TD COLSPAN=2><FONT COLOR=#808080>${d.sector}</FONT></TD></TR><TR><TD>Expected annual growth</TD><TD>${d.change}%</TD></TR><TR><TD>10%-ile drop from 52wk high</TD><TD>${d.drop}%</TD></TR><TR><TD>Market cap</TD><TD>${mktcaptxt}</TD></TR><TR><TD colspan=2><img src=\"${imgsrctxt}\"></TD></TR></TABLE>`).style('left', (event.pageX + 10) + 'px').style('top', (event.pageY - 20) + 'px').style('display', null).style('opacity', 1);
+  }
 }
 
 function showHelpInfo(event) {
-    const tooltip = d3.select('#tooltip');
-    tooltip.html('This analysis identifies stocks with steady growth trends,using:' + '<LI>a conservative approach to identify consistent growth</LI>' + '<LI>a 10th percentile threadhold to assess potential loss from 52-wk highs due to poor timing</LI>').style('left', (event.pageX) + 'px').style('top', (event.pageY) + 'px').style('display', null).style('opacity', 1).on('mouseleave', hideTooltip);
+  const tooltip = d3.select('#tooltip');
+  tooltip.html('This analysis identifies stocks with steady growth trends,using:' + '<LI>a conservative approach to identify consistent growth</LI>' + '<LI>a 10th percentile threadhold to assess potential loss from 52-wk highs due to poor timing</LI>').style('left', (event.pageX) + 'px').style('top', (event.pageY) + 'px').style('display', null).style('opacity', 1).on('mouseleave', hideTooltip);
 }
 
 function pickItem(event, d) {
-    showTooltip(event, d);
-    if (highlightItem == null) {
-        highlightItem = d.name;
-    } else if (highlightItem == d.name) {
-        highlightItem = null;
-    } else if (d.sector.endsWith(showCategory) || showCategory == 'Show all') {
-        highlightItem = d.name;
-    }
-    updateOpacity();
-    updateGraphics();
+  showTooltip(event, d);
+  if (highlightItem == null) {
+    highlightItem = d.name;
+  } else if (highlightItem == d.name) {
+    highlightItem = null;
+  } else if (d.sector.endsWith(showCategory) || showCategory == 'Show all') {
+    highlightItem = d.name;
+  }
+  updateOpacity();
+  updateGraphics();
 }
 
 function clickChart(event, d) {
-    if (event.target.tagName == 'circle') {
-        pickItem(event, d);
-    } else {
-        highlightItem = null;
-        hideTooltip();
-        updateOpacity();
-        updateGraphics();
-    }
+  if (event.target.tagName == 'circle') {
+    pickItem(event, d);
+  } else {
+    highlightItem = null;
+    hideTooltip();
+    updateOpacity();
+    updateGraphics();
+  }
 }
 
 function debugmessage(testmessage) {
-    const tooltip = d3.select('#tooltip');
-    tooltip.html('MESSAGE: ' + testmessage).style('left', (10) + 'px').style('top', (20) + 'px').transition().duration(0).style('display', null).transition().duration(0).style('opacity', 1);
+  const tooltip = d3.select('#tooltip');
+  tooltip.html('MESSAGE: ' + testmessage).style('left', (10) + 'px').style('top', (20) + 'px').transition().duration(0).style('display', null).transition().duration(0).style('opacity', 1);
 }
 
 function hideTooltip() {
-    d3.select('#tooltip').style('opacity', 0).style('display', 'none');
+  d3.select('#tooltip').style('opacity', 0).style('display', 'none');
 }
 updateGraphics();
 sortTable('datatable', 0, true);
-
+      
 </script>
 </body>
 </html>
