@@ -87,7 +87,10 @@ a { color: black; text-decoration: none;}
   <div id='tooltip'></div>
 
 <script src='https://d3js.org/d3.v7.min.js'></script>
+// Data
+<script src='https://jeffreytsaoprivate.github.io/stocks/topstocks.js'></script>
 
+<script>
 //------------------------------------------------
 // Global variables
 let highlightItem = null;
@@ -96,10 +99,6 @@ let lo_opacity = 0.05;
 let mid_opacity = 0.2;
 let showCategory = 'Show all';
 let svg;
-
-// Data
-<script src='https://jeffreytsaoprivate.github.io/stocks/topstocks.js'></script>
-
 data.forEach(d => {
   if (d.sector.endsWith('Basic Materials')) {
     d.color = '#FFECD1';
