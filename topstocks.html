@@ -127,10 +127,12 @@ data.forEach(d => {
   }
   d.outlinecolor = '#000000';
   d.opacity = 1;
+  var dateStrings = d.date;
+  d.datevalue = dateStrings.map(dateString => new Date(dateString));
 });
 if (typeof updatetimestamp !== 'undefined') {
-  const divsection = d3.select('#updatetimestamp');
-  divsection.html(updatetimestamp);
+  const tooltip = d3.select('#updatetimestamp');
+  tooltip.html(updatetimestamp);
 }
 const width = 800;
 const height = 600;
@@ -138,6 +140,7 @@ svg = d3.select('#chart').append('svg').attr('width', width).attr('height', heig
 const viewcategories = ['Show all', 'Basic Materials', 'Communication Services', 'Consumer Cyclical', 'Consumer Defensive', 'Energy', 'Financial Services', 'Healthcare', 'Industrials', 'Real Estate', 'Technology', 'Utilities', 'Others'];
 const categorycolors = ['#ffffff', '#FFECD1', '#F00000', '#0080FF', '#80FF00', '#C0C000', '#00FF00', '#008000', '#C0C0C0', '#800080', '#0000FF', '#808080', '#000000'];
 const categoryfontcolors = ['#000', '#000', '#fff', '#fff', '#000', '#fff', '#000', '#fff', '#000', '#fff', '#fff', '#fff', '#fff'];
+
 
 function createCategoryButtons(container, options, optioncolors, optionfontcolors) {
   options.forEach((option, index) => {
@@ -410,6 +413,15 @@ function showTooltip(event, d) {
   const tooltip = d3.select('#tooltip');
   if (d.opacity == 1) {
     const mktcaptxt = (d.mktcap > 1000000000000 ? (d.mktcap / 1000000000000).toFixed(1) + 'T' : (d.mktcap > 1000000000 ? (d.mktcap / 1000000000).toFixed(1) + 'B' : (d.mktcap > 1000000 ? (d.mktcap / 1000000).toFixed(1) + 'M' : d.mktcap.toFixed(0))));
+    tooltip.html(`<TABLE class=tooltip><TR><TD COLSPAN=2>${d.rank}. <strong>${d.name}</strong></TD></TR><TR><TD COLSPAN=2><FONT COLOR=#808080>${d.sector}</FONT></TD></TR><TR><TD>Expected annual growth</TD><TD>${d.change}%</TD></TR><TR><TD>10%-ile drop from 52wk high</TD><TD>${d.drop}%</TD></TR><TR><TD>Market cap</TD><TD>${mktcaptxt}</TD></TR><TR><TD colspan=2><div id=insetchart></div></TD></TR></TABLE>`)
+         .style('left', (event.pageX + 10) + 'px').style('top', (event.pageY - 20) + 'px').style('display', null).style('opacity', 1);
+    updateInsetChart(d);
+  }
+}
+function showTooltipOLD(event, d) {
+  const tooltip = d3.select('#tooltip');
+  if (d.opacity == 1) {
+    const mktcaptxt = (d.mktcap > 1000000000000 ? (d.mktcap / 1000000000000).toFixed(1) + 'T' : (d.mktcap > 1000000000 ? (d.mktcap / 1000000000).toFixed(1) + 'B' : (d.mktcap > 1000000 ? (d.mktcap / 1000000).toFixed(1) + 'M' : d.mktcap.toFixed(0))));
     const quotedArray = [];
     for (let i = 0; i < d.date.length; i++) {
       quotedArray.push(`'${d.date[i]}'`);
@@ -422,6 +434,48 @@ function showTooltip(event, d) {
   }
 }
 
+function updateInsetChart(data) {
+  const insetwidth = 300;
+  const insetheight = 200;
+  const insetmargx = 40
+  const insetmargy = 30
+
+  svg2 = d3.select('#insetchart').select('svg');
+  // If no SVG exists, create a new one
+  if (svg2.empty()) {
+     svg2 = d3.select('#insetchart').append('svg').attr('width', insetwidth).attr('height', insetheight);
+  }
+
+  //const yMin = Math.min(...data.loss, ...data.traj, ...data.price);
+  //const yMax = Math.max(...data.loss, ...data.traj, ...data.price);
+  const yExtent = [-100, 20]; // [yMin, yMax]; 
+  const yScale = d3.scaleLinear().domain(yExtent).range([insetheight - insetmargy*1.5, insetmargy*0.5]);
+
+  const xExtent = [Math.min(...data.datevalue), Math.max(...data.datevalue)];
+  const xScale = d3.scaleTime().domain(xExtent).range([insetmargx, insetwidth - insetmargx]);
+
+  svg2.selectAll('*').remove();
+  if (true) { // axes
+    svg2.append('g')
+	.attr('class', 'x-axis').attr('transform', `translate(0, ${insetheight - insetmargy*1.5} )`)
+	.call(d3.axisBottom(xScale).tickFormat(d3.timeFormat("%b'%y")))
+	.selectAll('text').style('text-anchor', 'end').attr('transform', 'rotate(-45)');
+    svg2.append('g').attr('class', 'y-axis').attr('transform', `translate(${insetmargx},0)`).call(d3.axisLeft(yScale).ticks(5));
+  }
+
+  const axisY = [0,0];
+  var line = d3.line().x((d, i) => xScale(xExtent[i])).y((d, i) => yScale(axisY[i]));
+  svg2.append('path').datum(d3.range(2)).attr('d', line).attr("fill", "none").attr("stroke", "black").attr("stroke-width", 1).attr("stroke-dasharray", "1,1");
+
+  line = d3.line().x((d, i) => xScale(data.datevalue[i])).y((d, i) => yScale(data.loss[i]));
+  svg2.append('path').datum(d3.range(data.datevalue.length)).attr('d', line).attr("fill", "none").attr("stroke", "#c00000").attr("stroke-width", 1).attr("stroke-dasharray", "1,1");
+
+  line = d3.line().x((d, i) => xScale(data.datevalue[i])).y((d, i) => yScale(data.traj[i]));
+  svg2.append('path').datum(d3.range(data.datevalue.length)).attr('d', line).attr("fill", "none").attr("stroke", "blue").attr("stroke-width", 1).attr("stroke-dasharray", "5,5");
+  
+  line = d3.line().x((d, i) => xScale(data.datevalue[i])).y((d, i) => yScale(data.price[i]));
+  svg2.append('path').datum(d3.range(data.datevalue.length)).attr('d', line).attr("fill", "none").attr("stroke", "blue").attr("stroke-width", 2);
+}
 function showHelpInfo(event) {
   const tooltip = d3.select('#tooltip');
   tooltip.html('This analysis identifies stocks with steady growth trends,using:' + '<LI>a conservative approach to identify consistent growth</LI>' + '<LI>a 10th percentile threadhold to assess potential loss from 52-wk highs due to poor timing</LI>').style('left', (event.pageX) + 'px').style('top', (event.pageY) + 'px').style('display', null).style('opacity', 1).on('mouseleave', hideTooltip);
