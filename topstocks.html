@@ -78,6 +78,7 @@ a { color: black; text-decoration: none;}
   <table width=100% class='layout'><TR>
   <TD colspan=2>
   <FONT SIZE='+2'>Top stocks <A onclick='showHelpInfo(event)' onmouseover='showHelpInfo(event)'>&#9432;</FONT></A><BR>
+  <DIV id='updatetimestamp'></DIV>
   </TD></TR>
   <TR>
   <TD width=85% align=middle><div id='chart'></div></TD>
@@ -127,6 +128,10 @@ data.forEach(d => {
   d.outlinecolor = '#000000';
   d.opacity = 1;
 });
+if (typeof updatetimestamp !== 'undefined') {
+  const divsection = d3.select('#updatetimestamp');
+  divsection.html(updatetimestamp);
+}
 const width = 800;
 const height = 600;
 svg = d3.select('#chart').append('svg').attr('width', width).attr('height', height);
