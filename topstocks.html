@@ -280,7 +280,7 @@ function updateTable() {
   const thead = document.createElement('thead');
   const headerRow = document.createElement('tr');
   const columns = ['Rank', 'Company', 'Sector', 'Market Cap', 'Expected annual growth', 'Drop from 52-wk high'];
-  const columnwidth = ['5%', '50%', '20%', '5%', '10%', '10%'];
+  const columnwidth = ['5%', '40%', '30%', '5%', '10%', '10%'];
   columns.forEach((column, index) => {
     const th = document.createElement('th');
     th.dataset.index = index;
@@ -358,15 +358,29 @@ function filterTable(tableid) {
   filterItem = filterInput.value;
   const filterValue = filterItem.toLowerCase();
   const rows = tbody.getElementsByTagName('tr');
+  var NumSelected=0;
+  var LastChosen=-1;
+
   for (let i = 0; i < rows.length; i++) {
     const nameCell = rows[i].getElementsByTagName('td')[1];
     const name = nameCell.textContent.toLowerCase();
     if (name.includes(filterValue)) {
       rows[i].style.display = '';
+      NumSelected=NumSelected+1;
+      LastChosen = i;
     } else {
       rows[i].style.display = 'none';
     }
   }
+  if (NumSelected==1) {
+    const nameCell = rows[LastChosen].getElementsByTagName('td')[1];
+    const name = nameCell.textContent;
+    highlightItem = name;
+  } else {
+    highlightItem = null;
+  }
+  updateOpacity();
+  updateBubbleChart();
 }
 
 function sortTable(tableid, columnIndex, ascending = true) {
