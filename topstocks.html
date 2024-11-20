@@ -88,8 +88,7 @@ a { color: black; text-decoration: none;}
   <div id='tooltip'></div>
 
 <script src='https://d3js.org/d3.v7.min.js'></script>
-<script src='https://jeffreytsaoprivate.github.io/stocks/topstocks.js'></script>
-
+//<script src=https://jeffreytsaoprivate.github.io/stocks/topstocks.js></script>
 <script>
 //------------------------------------------------
 // Global variables
@@ -99,6 +98,16 @@ let lo_opacity = 0.05;
 let mid_opacity = 0.2;
 let showCategory = 'Show all';
 let svg;
+
+function loadScript(src) {
+  const script = document.createElement('script');
+  script.src = src;
+  
+  document.head.appendChild(script);
+}
+// Force reload of data by adding a random number each time
+loadScript("https://jeffreytsaoprivate.github.io/stocks/topstocks.js?v=" + (Math.floor(Math.random() * (1000000 - 1 + 1)) + 1) );
+
 data.forEach(d => {
   if (d.sector.endsWith('Basic Materials')) {
     d.color = '#FFECD1';
@@ -130,10 +139,11 @@ data.forEach(d => {
   var dateStrings = d.date;
   d.datevalue = dateStrings.map(dateString => new Date(dateString));
 });
+
 if (typeof updatetimestamp !== 'undefined') {
-  const tooltip = d3.select('#updatetimestamp');
-  tooltip.html(updatetimestamp);
+  d3.select('#updatetimestamp').html(updatetimestamp);
 }
+
 const width = 800;
 const height = 600;
 svg = d3.select('#chart').append('svg').attr('width', width).attr('height', height);
