@@ -101,14 +101,13 @@ let svg;
 
 function loadScript(src, forcereload = true) {
   const script = document.createElement('script');
-  script.src = src;
   script.type = "text/javascript";  
   if (forcereload) {
-     var randomnum = "?v=" + (Math.floor(Math.random() * (1000000 - 1 + 1)) + 1) );
-     document.head.appendChild(script + randomnum);
+     script.src = src + "?v=" + (Math.floor(Math.random() * (1000000 - 1 + 1)) + 1);
   } else {
-     document.head.appendChild(script);
+     script.src = src;
   }
+  document.head.appendChild(script);
 }
 loadScript("https://jeffreytsaoprivate.github.io/stocks/topstocks.js");
 
