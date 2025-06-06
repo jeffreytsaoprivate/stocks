@@ -112,27 +112,27 @@ function loadScript(src, forcereload = true) {
 loadScript("https://jeffreytsaoprivate.github.io/stocks/topstocks.js");
 
 data.forEach(d => {
-  if (d.sector.endsWith('Basic Materials')) {
+  if (d.sector.startsWith('Basic Materials') || d.sector.endsWith('Basic Materials')) {
     d.color = '#FFECD1';
-  } else if (d.sector.endsWith('Communication Services')) {
+  } else if (d.sector.startsWith('Communication Services') || d.sector.endsWith('Communication Services')) {
     d.color = '#F00000';
-  } else if (d.sector.endsWith('Consumer Cyclical')) {
+  } else if (d.sector.startsWith('Consumer Cyclical') || d.sector.endsWith('Consumer Cyclical')) {
     d.color = '#0080FF';
-  } else if (d.sector.endsWith('Consumer Defensive')) {
+  } else if (d.sector.startsWith('Consumer Defensive') || d.sector.endsWith('Consumer Defensive')) {
     d.color = '#80FF00';
-  } else if (d.sector.endsWith('Energy')) {
+  } else if (d.sector.startsWith('Energy') || d.sector.endsWith('Energy')) {
     d.color = '#C0C000';
-  } else if (d.sector.endsWith('Financial Services')) {
+  } else if (d.sector.startsWith('Financial Services') || d.sector.endsWith('Financial Services')) {
     d.color = '#00FF00';
-  } else if (d.sector.endsWith('Healthcare')) {
+  } else if (d.sector.startsWith('Healthcare') || d.sector.endsWith('Healthcare')) {
     d.color = '#008000';
-  } else if (d.sector.endsWith('Industrials')) {
+  } else if (d.sector.startsWith('Industrials') || d.sector.endsWith('Industrials')) {
     d.color = '#C0C0C0';
-  } else if (d.sector.endsWith('Real Estate')) {
+  } else if (d.sector.startsWith('Real Estate') || d.sector.endsWith('Real Estate')) {
     d.color = '#800080';
-  } else if (d.sector.endsWith('Technology')) {
+  } else if (d.sector.startsWith('Technology') || d.sector.endsWith('Technology')) {
     d.color = '#0000FF';
-  } else if (d.sector.endsWith('Utilities')) {
+  } else if (d.sector.startsWith('Utilities') || d.sector.endsWith('Utilities')) {
     d.color = '#808080';
   } else {
     d.color = '#000000';
