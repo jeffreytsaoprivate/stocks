@@ -217,11 +217,11 @@ function updateOpacity() {
   } else {
     if (showCategory == 'Show all') {
       data.forEach(d => {
-        d.opacity = (d.name == highlightItem ? 1 : lo_opacity);
+        d.opacity = (d.symbol == highlightItem ? 1 : lo_opacity);
       });
     } else {
       data.forEach(d => {
-        d.opacity = (d.name == highlightItem ? 1 : (d.sector.endsWith(showCategory) ? mid_opacity : lo_opacity));
+        d.opacity = (d.symbol == highlightItem ? 1 : (d.sector.endsWith(showCategory) ? mid_opacity : lo_opacity));
       });
     }
   }
@@ -274,6 +274,22 @@ function updateBubbleChart() {
     bubbles = svg.selectAll('circle').data(data_filtered).enter().append('circle').on('click', pickItem).attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', d => (d.opacity == 1 ? 'grey' : 'none')).attr('stroke-width', 1);
     data_filtered = data.filter(d => d.opacity == 1);
     bubbles = svg.selectAll('circle1').data(data_filtered).enter().append('circle').on('mouseover', showTooltip).on('mousemove', showTooltip).on('click', pickItem).on('mouseout', hideTooltip).attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', d => (d.opacity == 1 ? 'grey' : 'none')).attr('stroke-width', 1);
+
+    // --- ADDED CODE FOR TOP 10 LABELS ---
+    const top10Data = data.filter(d => d.rank >= 1 && d.rank <= 10 && d.opacity === 1); // Only show labels for fully opaque (selected or 'Show all') items
+    
+    svg.selectAll('.rank-label')
+        .data(top10Data).enter().append('text')
+        .attr('class', 'rank-label') // Add a class for specific styling/selection if needed
+        .attr('x', d => xScale(d.change) + radiusScale(d.mktcap)+5) // Position label to the right of the bubble
+        .attr('y', d => yScale(d.drop) + 5) // Adjust vertical position for better alignment
+        .text(d => d.rank)
+        .attr('fill', 'grey')
+        .attr('font-size', '12px') // Adjust font size as needed
+        .attr('font-weight', 'normal')
+        .attr('text-anchor', 'start'); // Align text to the start (left)
+    // --- END ADDED CODE -
+    
   } else {
     data_filtered = data.filter(d => d.opacity != 1 && d.sector.endsWith(showCategory) == false);
     bubbles = svg.selectAll('circle').data(data_filtered).enter().append('circle').attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'none').attr('stroke-width', 1);
@@ -292,12 +308,12 @@ function updateTable() {
   table.id = 'datatable';
   const thead = document.createElement('thead');
   const headerRow = document.createElement('tr');
-  const columns = ['Rank', 'Company', 'Sector', 'Market Cap', 'Expected annual growth', 'Drop from 52-wk high'];
-  const columnwidth = ['5%', '40%', '30%', '5%', '10%', '10%'];
+  const columns = ['Rank', 'Symbol', 'Company', 'Sector', 'Market Cap', 'Expected annual growth', 'Drop from 52-wk high'];
+  const columnwidth = ['5%', '10%', '30%', '30%', '5%', '10%', '10%'];
   columns.forEach((column, index) => {
     const th = document.createElement('th');
     th.dataset.index = index;
-    th.innerHTML = column + (index == 1 ? '&nbsp;&nbsp;' + '<input type=\'text\' id=\'filterName\' placeholder=\'Filter by name\' value=\'' + filterItem + '\'>' + '<button id=\'filterNameCancel\'>X</button>' : '') + '<BR>' + '<A onclick=\'sortTable(\"datatable\",' + index + ',true )\'>&#9650;</A>' + '<A onclick=\'sortTable(\"datatable\",' + index + ',false)\'>&#9660;</A>';
+    th.innerHTML = column + (index == 2 ? '&nbsp;&nbsp;' + '<input type=\'text\' id=\'filterName\' placeholder=\'Filter by name\' value=\'' + filterItem + '\'>' + '<button id=\'filterNameCancel\'>X</button>' : '') + '<BR>' + '<A onclick=\'sortTable(\"datatable\",' + index + ',true )\'>&#9650;</A>' + '<A onclick=\'sortTable(\"datatable\",' + index + ',false)\'>&#9660;</A>';
     th.style.width = columnwidth[index];
     headerRow.appendChild(th);
   });
@@ -312,6 +328,10 @@ function updateTable() {
         td.textContent = d.rank;
         if (d.opacity == mid_opacity) td.style.color = '#A0A0A0';
         tr.appendChild(td);
+        td = document.createElement('td');
+        td.textContent = d.symbol;
+        if (d.opacity == mid_opacity) td.style.color = '#A0A0A0';
+        tr.appendChild(td);        
         td = document.createElement('td');
         td.textContent = d.name;
         if (d.opacity == mid_opacity) td.style.color = '#A0A0A0';
@@ -343,7 +363,7 @@ function updateTable() {
     const target = event.target;
     if (target.tagName === 'TD') {
       const row = target.parentNode;
-      const firstCell = row.cells[1];
+      const firstCell = row.cells[1]; // symbol      
       const content = firstCell.textContent;
       if (highlightItem == content) {
         highlightItem = null;
@@ -386,9 +406,7 @@ function filterTable(tableid) {
     }
   }
   if (NumSelected==1) {
-    const nameCell = rows[LastChosen].getElementsByTagName('td')[1];
-    const name = nameCell.textContent;
-    highlightItem = name;
+    highlightItem = rows[LastChosen].getElementsByTagName('td')[1].textContent; // symbol
   } else {
     highlightItem = null;
   }
@@ -440,7 +458,7 @@ function showTooltip(event, d) {
   const tooltip = d3.select('#tooltip');
   if (d.opacity == 1) {
     const mktcaptxt = (d.mktcap > 1000000000000 ? (d.mktcap / 1000000000000).toFixed(1) + 'T' : (d.mktcap > 1000000000 ? (d.mktcap / 1000000000).toFixed(1) + 'B' : (d.mktcap > 1000000 ? (d.mktcap / 1000000).toFixed(1) + 'M' : d.mktcap.toFixed(0))));
-    tooltip.html(`<TABLE class=tooltip><TR><TD COLSPAN=2>${d.rank}. <strong>${d.name}</strong></TD></TR><TR><TD COLSPAN=2><FONT COLOR=#808080>${d.sector}</FONT></TD></TR><TR><TD>Expected annual growth</TD><TD>${d.change}%</TD></TR><TR><TD>10%-ile drop from 52wk high</TD><TD>${d.drop}%</TD></TR><TR><TD>Market cap</TD><TD>${mktcaptxt}</TD></TR><TR><TD colspan=2><div id=insetchart></div></TD></TR></TABLE>`)
+    tooltip.html(`<TABLE class=tooltip><TR><TD COLSPAN=2>${d.rank}. <strong>${d.name}</strong> (${d.symbol})</TD></TR><TR><TD COLSPAN=2><FONT COLOR=#808080>${d.sector}</FONT></TD></TR><TR><TD>Expected annual growth</TD><TD>${d.change}%</TD></TR><TR><TD>10%-ile drop from 52wk high</TD><TD>${d.drop}%</TD></TR><TR><TD>Market cap</TD><TD>${mktcaptxt}</TD></TR><TR><TD colspan=2><div id=insetchart></div></TD></TR></TABLE>`)
          .style('left', (event.pageX + 10) + 'px').style('top', (event.pageY - 20) + 'px').style('display', null).style('opacity', 1);
     updateInsetChart(d);
   }
@@ -511,11 +529,11 @@ function showHelpInfo(event) {
 function pickItem(event, d) {
   showTooltip(event, d);
   if (highlightItem == null) {
-    highlightItem = d.name;
-  } else if (highlightItem == d.name) {
+    highlightItem = d.symbol;
+  } else if (highlightItem == d.symbol) {
     highlightItem = null;
   } else if (d.sector.endsWith(showCategory) || showCategory == 'Show all') {
-    highlightItem = d.name;
+    highlightItem = d.symbol;
   }
   updateOpacity();
   updateGraphics();
