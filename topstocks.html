@@ -211,7 +211,7 @@ function updateOpacity() {
       });
     } else {
       data.forEach(d => {
-        d.opacity = (d.sector.endsWith(showCategory) ? 1 : lo_opacity);
+        d.opacity = (d.sector.startsWith(showCategory) ? 1 : lo_opacity);
       });
     }
   } else {
@@ -221,7 +221,7 @@ function updateOpacity() {
       });
     } else {
       data.forEach(d => {
-        d.opacity = (d.symbol == highlightItem ? 1 : (d.sector.endsWith(showCategory) ? mid_opacity : lo_opacity));
+        d.opacity = (d.symbol == highlightItem ? 1 : (d.sector.startsWith(showCategory) ? mid_opacity : lo_opacity));
       });
     }
   }
@@ -291,9 +291,9 @@ function updateBubbleChart() {
     // --- END ADDED CODE -
     
   } else {
-    data_filtered = data.filter(d => d.opacity != 1 && d.sector.endsWith(showCategory) == false);
+    data_filtered = data.filter(d => d.opacity != 1 && d.sector.startsWith(showCategory) == false);
     bubbles = svg.selectAll('circle').data(data_filtered).enter().append('circle').attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'none').attr('stroke-width', 1);
-    data_filtered = data.filter(d => d.opacity != 1 && d.sector.endsWith(showCategory));
+    data_filtered = data.filter(d => d.opacity != 1 && d.sector.startsWith(showCategory));
     bubbles = svg.selectAll('circle1').data(data_filtered).enter().append('circle').on('click', pickItem).attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'none').attr('stroke-width', 1);
     data_filtered = data.filter(d => d.opacity == 1);
     bubbles = svg.selectAll('circle2').data(data_filtered).enter().append('circle').on('mouseover', showTooltip).on('mousemove', showTooltip).on('click', pickItem).on('mouseout', hideTooltip).attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'grey').attr('stroke-width', 1);
@@ -532,7 +532,7 @@ function pickItem(event, d) {
     highlightItem = d.symbol;
   } else if (highlightItem == d.symbol) {
     highlightItem = null;
-  } else if (d.sector.endsWith(showCategory) || showCategory == 'Show all') {
+  } else if (d.sector.startsWith(showCategory) || showCategory == 'Show all') {
     highlightItem = d.symbol;
   }
   updateOpacity();
@@ -564,3 +564,4 @@ sortTable('datatable', 0, true);
 </script>
 </body>
 </html>
+
