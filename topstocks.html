@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <head><meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
 
@@ -239,7 +240,9 @@ function updateGraphics() {
 }
 
 function updateBubbleChart() {
-  const xExtent = [0, d3.max(data, d => d.change)];
+  const MaxAnnualGrowthFold = 5;
+  //const xExtent = [Math.log10(Math.max(d3.min(data, d => d.change)/100+1,0.00001)), Math.log10(d3.max(data, d => d.change)/100 + 1)];
+  const xExtent = [0, d3.max(data, d => Math.min(d.change, MaxAnnualGrowthFold*100))];
   const yExtent = [d3.min(data, d => d.drop), 0];
   const xScale = d3.scaleLinear().domain(xExtent).range([100, width - 100]);
   const yScale = d3.scaleLinear().domain(yExtent).range([height - 50, 50]);
@@ -269,34 +272,55 @@ function updateBubbleChart() {
     svg.append('g').attr('class', 'x-axis').attr('transform', 'translate(0,50)').call(d3.axisBottom(xScale));
     svg.append('g').attr('class', 'y-axis').attr('transform', 'translate(100,0)').call(d3.axisLeft(yScale));
   }
-  if (showCategory == 'Show all') {
-    data_filtered = data.filter(d => d.opacity != 1);
-    bubbles = svg.selectAll('circle').data(data_filtered).enter().append('circle').on('click', pickItem).attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', d => (d.opacity == 1 ? 'grey' : 'none')).attr('stroke-width', 1);
-    data_filtered = data.filter(d => d.opacity == 1);
-    bubbles = svg.selectAll('circle1').data(data_filtered).enter().append('circle').on('mouseover', showTooltip).on('mousemove', showTooltip).on('click', pickItem).on('mouseout', hideTooltip).attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', d => (d.opacity == 1 ? 'grey' : 'none')).attr('stroke-width', 1);
 
-    // --- ADDED CODE FOR TOP 10 LABELS ---
+  {
+    const selectedData = data.filter(d => d.opacity==1);
+    if (selectedData.length == 1) {
+        const item = selectedData[0];
+        var line = d3.line().x((d, j) => xScale(Math.min(item.AllRobustChange[j],MaxAnnualGrowthFold*100))).y((d, j) => yScale(item.AllWorstDrop[j]));
+        svg.append('path').datum(d3.range(item.datevalue.length)).attr('d', line).attr("fill", "none").attr("stroke", "gray").attr("stroke-width", 1).attr("stroke-dasharray", "1,1");
+    }
+  }
+
+  if (showCategory == 'Show all') {
+    //---------Add all circles ------------------------------
+    data_filtered = data.filter(d => d.opacity != 1);
+    bubbles = svg.selectAll('circle').data(data_filtered).enter().append('circle').on('click', pickItem).attr('cx', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100))).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', d => (d.opacity == 1 ? 'grey' : 'none')).attr('stroke-width', 1);
+    data_filtered = data.filter(d => d.opacity == 1);
+    bubbles = svg.selectAll('circle1').data(data_filtered).enter().append('circle').on('mouseover', showTooltip).on('mousemove', showTooltip).on('click', pickItem).on('mouseout', hideTooltip).attr('cx', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100))).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', d => (d.opacity == 1 ? 'grey' : 'none')).attr('stroke-width', 1);
+
+    //---------Add labels for top 10 ---------------
     const top10Data = data.filter(d => d.rank >= 1 && d.rank <= 10 && d.opacity === 1); // Only show labels for fully opaque (selected or 'Show all') items
-    
     svg.selectAll('.rank-label')
         .data(top10Data).enter().append('text')
         .attr('class', 'rank-label') // Add a class for specific styling/selection if needed
-        .attr('x', d => xScale(d.change) + radiusScale(d.mktcap)+5) // Position label to the right of the bubble
+        .attr('x', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100)) + radiusScale(d.mktcap)+5) // Position label to the right of the bubble
         .attr('y', d => yScale(d.drop) + 5) // Adjust vertical position for better alignment
         .text(d => d.rank)
         .attr('fill', 'grey')
         .attr('font-size', '12px') // Adjust font size as needed
         .attr('font-weight', 'normal')
         .attr('text-anchor', 'start'); // Align text to the start (left)
-    // --- END ADDED CODE -
-    
   } else {
     data_filtered = data.filter(d => d.opacity != 1 && d.sector.startsWith(showCategory) == false);
-    bubbles = svg.selectAll('circle').data(data_filtered).enter().append('circle').attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'none').attr('stroke-width', 1);
+    bubbles = svg.selectAll('circle').data(data_filtered).enter().append('circle').attr('cx', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100))).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'none').attr('stroke-width', 1);
     data_filtered = data.filter(d => d.opacity != 1 && d.sector.startsWith(showCategory));
-    bubbles = svg.selectAll('circle1').data(data_filtered).enter().append('circle').on('click', pickItem).attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'none').attr('stroke-width', 1);
+    bubbles = svg.selectAll('circle1').data(data_filtered).enter().append('circle').on('click', pickItem).attr('cx', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100))).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'none').attr('stroke-width', 1);
     data_filtered = data.filter(d => d.opacity == 1);
-    bubbles = svg.selectAll('circle2').data(data_filtered).enter().append('circle').on('mouseover', showTooltip).on('mousemove', showTooltip).on('click', pickItem).on('mouseout', hideTooltip).attr('cx', d => xScale(d.change)).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'grey').attr('stroke-width', 1);
+    bubbles = svg.selectAll('circle2').data(data_filtered).enter().append('circle').on('mouseover', showTooltip).on('mousemove', showTooltip).on('click', pickItem).on('mouseout', hideTooltip).attr('cx', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100))).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'grey').attr('stroke-width', 1);
+
+    //---------Add labels for top 10 ---------------
+    const top10Data = data.filter(d => d.rank >= 1 && d.rank <= 10 && d.opacity === 1 && d.sector.startsWith(showCategory)); // Only show labels for fully opaque (selected or 'Show all') items
+    svg.selectAll('.rank-label')
+        .data(top10Data).enter().append('text')
+        .attr('class', 'rank-label') // Add a class for specific styling/selection if needed
+        .attr('x', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100)) + radiusScale(d.mktcap)+5) // Position label to the right of the bubble
+        .attr('y', d => yScale(d.drop) + 5) // Adjust vertical position for better alignment
+        .text(d => d.rank)
+        .attr('fill', 'grey')
+        .attr('font-size', '12px') // Adjust font size as needed
+        .attr('font-weight', 'normal')
+        .attr('text-anchor', 'start'); // Align text to the start (left)
   }
   svg.on('click', clickChart);
 }
@@ -564,4 +588,5 @@ sortTable('datatable', 0, true);
 </script>
 </body>
 </html>
+
 
