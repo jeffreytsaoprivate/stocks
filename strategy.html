@@ -1,0 +1,563 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategy.com mNav</title>
+
+    <style>
+        :root {
+            --primary-color: #007bff; /* A nice blue for accents */
+            --secondary-color: #6c757d; /* Grey for text */
+            --background-light: #f8f9fa; /* Light background for body */
+            --card-background: #ffffff; /* White background for cards/charts */
+            --border-color: #dee2e6; /* Light grey border */
+            --shadow-color: rgba(0, 0, 0, 0.08); /* Subtle shadow */
+            --font-family-primary: 'Helvetica Neue', Arial, sans-serif;
+            --chart-grid-color: rgba(0, 0, 0, 0.1);
+            --chart-font-color: #343a40; /* Darker text for charts */
+            --chart-line-thickness: 2; /* Default line thickness */
+
+            /* Percentile Colors & Styles */
+            --p3-color: #dc3545; /* Red for 3rd percentile */
+            --p10-color: #ffc107; /* Orange for 10th percentile */
+            --p25-color: #17a2b8; /* Cyan for 25th percentile */
+            --p50-color: #28a745; /* Green for 50th percentile */
+            --p75-color: #17a2b8; /* Cyan for 75th percentile */
+            --p90-color: #ffc107; /* Orange for 90th percentile */
+            --p97-color: #dc3545; /* Red for 97th percentile */
+        }
+
+        html {
+            text-align: center;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            text-align: center;
+            background-color: var(--background-light);
+            margin: 0;
+            padding: 10px; /* Reduced padding */
+            font-size: 1rem; /* Slightly smaller font for compactness */
+            font-family: var(--font-family-primary);
+            color: var(--secondary-color);
+        }
+
+        h1, h2, h3 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 8px; /* Reduced margin */
+            font-weight: 600;
+        }
+        h1 {
+            font-size: 2.2rem; /* Reduced font size */
+            margin-top: 0;
+        }
+        h2 {
+            font-size: 1.6rem; /* Reduced font size */
+            text-align: left;
+            margin-bottom: 3px; /* Reduced margin */
+            padding-left: 5px;
+        }
+        h3 {
+            font-size: 1.3rem; /* Reduced font size */
+            text-align: left;
+            text-decoration: none;
+            border-bottom: 1px solid var(--border-color); /* Thinner border */
+            padding-bottom: 3px; /* Reduced padding */
+            margin-top: 15px; /* Reduced margin */
+        }
+
+        ol {
+            margin: 5px 0; /* Reduced margin */
+            padding-left: 20px;
+            text-align: left;
+        }
+
+        /* Container for the entire application */
+        #appContainer {
+            max-width: 1200px;
+            margin: 15px auto; /* Reduced margin */
+            background-color: var(--card-background);
+            padding: 20px; /* Reduced padding */
+            border-radius: 12px;
+            box-shadow: 0 6px 15px var(--shadow-color); /* Slightly smaller shadow */
+            display: flex;
+            flex-direction: column;
+            gap: 15px; /* Reduced gap */
+            align-items: center;
+        }
+
+        /* Updated Grid Container */
+        #chartContainer {
+            width: 100%;
+            display: grid;
+            /* Create two equal columns */
+            grid-template-columns: 1fr 1fr; 
+            gap: 20px;
+            padding: 15px;
+            align-items: start;
+        }
+
+        .chart-wrapper {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 3px 10px var(--shadow-color);
+            height: 400px; /* Base height for bottom charts */
+        }
+
+        /* Chart 1: Top, Full Width, and Taller */
+        .chart-wrapper:first-child {
+            grid-column: 1 / span 2;
+            height: 500px;
+        }
+
+        /* Stack charts vertically on small screens */
+        @media (max-width: 800px) {
+            #chartContainer {
+                grid-template-columns: 1fr;
+            }
+            .chart-wrapper:first-child {
+                grid-column: 1;
+            }
+        }
+
+        #debug {
+            margin-top: 15px; /* Reduced margin */
+            font-size: 0.85rem; /* Slightly smaller font */
+            padding: 8px; /* Reduced padding */
+            /* border-left: 4px solid #ccc; */ /* Thinner border */
+        }
+
+        sup {
+            vertical-align: super;
+            font-size: 0.75em; /* Slightly smaller */
+        }
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+</head>
+<body>
+
+<div id="appContainer">
+    <h1>Strategy.com mNav</h1>
+    <div id="chartContainer">
+        <div class="chart-wrapper">
+         <canvas id="myChart1"></canvas>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="myChart2"></canvas>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="myChart3"></canvas>
+        </div>
+    </div>
+    
+    <div id="debug"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, deleteDoc, doc, getDocs, query, where, writeBatch, orderBy, onSnapshot, Timestamp, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await initializeFirebase("strategy.com");
+});
+
+function updateCharts() {
+    const data = getFirebaseData();
+    if (!data || data.length === 0) return;
+
+    // 1. Sort data to find the most recent entry
+    const sorted = [...data].sort((a, b) => b.Timestamp - a.Timestamp);
+    const latest = sorted[0];
+
+    // 2. Update Charts with dynamic titles
+    const latestMNav = latest['mNav'] ? latest['mNav'].toFixed(3) : '--';
+    const latestBTCreserve = latest['BTC Reserve'] ? latest['BTC Reserve'].toLocaleString(0) : '--';
+    const latestEV = latest['Enterprise Value'] ? latest['Enterprise Value'].toLocaleString(0) : '--';
+
+    
+    updateChart(data, `mNav (${latestMNav}x)`, 'myChart1', 'mNav');
+    updateChart(data, `Enterprise Value ($${latestEV}M)`, 'myChart2', 'Enterprise Value');
+    updateChart(data, `BTC Reserve ($${latestBTCreserve}M)`, 'myChart3', 'BTC Reserve');
+}
+
+const chartInstances = {};
+function updateChart(data, title, chartId, measure) {
+    const canvas = document.getElementById(chartId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    // Sort data chronologically using the Timestamp field
+    const sortedData = [...data].sort((a, b) => {
+        const timeA = a.Timestamp instanceof Date ? a.Timestamp.getTime() : new Date(a.Timestamp).getTime();
+        const timeB = b.Timestamp instanceof Date ? b.Timestamp.getTime() : new Date(b.Timestamp).getTime();
+        return timeA - timeB;
+    });
+
+    const datasetData = sortedData
+        .filter(entry => entry[measure] !== undefined && entry[measure] !== null)
+        .map(entry => ({
+            x: entry.Timestamp instanceof Date ? entry.Timestamp : new Date(entry.Timestamp),
+            y: entry[measure]
+        }));
+
+    const options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+            title: { 
+                display: true, 
+                text: title, 
+                font: {
+                    size: 18, // Increased font size
+                    weight: 'bold'
+                },
+                padding: { bottom: 20 }
+             },
+            legend: { display: false }
+        },
+        scales: {
+            x: {
+                type: 'time', // Sets the X-axis to display as dates
+                time: {
+                    unit: 'day',
+                    displayFormats: { day: 'MMM d, yyyy' }
+                },
+                title: { display: true, text: 'Date' }
+            },
+            y: {
+                beginAtZero: false,
+                ticks: {
+                    // Cleaner formatting for large numbers
+                    callback: (value) => value >= 1000 ? value.toLocaleString() : value
+                }
+            }
+        }
+    };
+
+    if (chartInstances[chartId]) {
+        chartInstances[chartId].data.datasets[0].data = datasetData;
+        chartInstances[chartId].options = options;
+        chartInstances[chartId].update();
+    } else {
+        chartInstances[chartId] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: title,
+                    data: datasetData,
+                    borderColor: 'rgb(0, 123, 255)',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                    tension: 0.1 // Smooths the line slightly
+                }]
+            },
+            options: options
+        });
+    }
+}
+
+function formatDate(myDate) {
+    const year = myDate.getFullYear();
+    const month = (myDate.getMonth() + 1).toString().padStart(2, '0');
+    const day = myDate.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// Initialize Firebase and Authentication
+let firebase = {
+    firebaseConfig: {
+        apiKey: "AIzaSyA9k81iD2mzPuLKBl76d6sdcLWvguDBzcs",
+        authDomain: "kids-15b5a.firebaseapp.com",
+        projectId: "kids-15b5a",
+        storageBucket: "kids-15b5a.firebasestorage.app",
+        messagingSenderId: "350263998718",
+        appId: "1:350263998718:web:8c1d356caa2df0da99cdaf",
+        measurementId: "G-7CM04QF69W",
+    },
+    initialAuthToken: null, // Set to a specific custom auth token string if needed for local testing
+    app: null,
+    db: null,
+    auth: null,
+    isAuthReady: false,
+    userUid: null,
+    collectionName: null,
+};
+
+ // Initialize Firebase and Authentication
+async function initializeFirebase(collectionName) 
+{
+    try {
+        firebase.collectionName = collectionName;
+        firebase.app = initializeApp(firebase.firebaseConfig);
+        firebase.db = getFirestore(firebase.app);
+        firebase.auth = getAuth(firebase.app);
+
+        //authStatusDisplay.textContent = "Authenticating...";
+
+        // Listen for auth state changes
+        onAuthStateChanged(firebase.auth, async (user) => {
+            if (user) {
+                firebase.userUid = user.uid; // Still get UID for authentication check
+                firebase.isAuthReady = true;
+                console.log(`→ Firebase user ID: ${firebase.userUid}`);
+                loadFirebaseData();
+            } else {
+                // Attempt to sign in
+                if (firebase.initialAuthToken) {
+                    await signInWithCustomToken(firebase.auth, firebase.initialAuthToken);
+                } else {
+                    try {
+                        await signInAnonymously(firebase.auth);
+
+                    } catch (error) {
+                        // If the promise rejects (e.g., error from Firebase), it will be caught here.
+                        const errorCode = error.code;
+                        const errorMessage = error.message;
+                        console.error("✗ Anonymous sign-in failed:", errorCode, errorMessage);
+                        // Common error codes: 'auth/operation-not-allowed'
+                        return null;
+                    } finally {
+                        console.log(`✓ Anonymous sign-in to firebase.`);
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        debug(`✗ Error initializing Firebase: ${error}`);
+    }
+}
+
+let FirebaseData = [];
+
+// Function to load and display messages from Firestore (now from a public collection)
+function loadFirebaseData() {    
+    if (!firebase.isAuthReady || !firebase.userUid) {
+        debug(`→ Waiting for authentication...`);
+        return;
+    }
+
+    // Create a query to the PUBLIC message collection, ordered by timestamp
+    const messagesCollectionRef = collection(firebase.db, `artifacts/${firebase.firebaseConfig.appId}/public/data/${firebase.collectionName}`);     
+    const q = query(messagesCollectionRef); // Order by latest first
+    
+    // Set up a real-time listener
+    onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+            debug(`⚠ No data available...`);
+            return; // no data yet
+        }
+        // Process all the change. First time, it will be recorded as added
+        snapshot.docChanges().forEach((change) => {
+            if (change.type == 'added') {
+                let newentry = createRowDataFromChange(change);
+                FirebaseData.push(newentry);
+            } else if (change.type == 'removed') {
+                FirebaseData = FirebaseData.filter(entry => entry['docID'] !== change.doc.id);
+            } else if (change.type == 'modified') {
+                let newentry = createRowDataFromChange(change);
+                FirebaseData = FirebaseData.map(item => { // replace item
+                    if (item['docID'] === change.doc.id) return newentry;
+                    return item;
+                });
+            }
+        });
+        updateCharts();
+        //console.log(`loaded FirebaseData`);
+        //console.dir(FirebaseData);
+        
+    }, (error) => {
+        console.error(`✗ Error fetching data: ${error}`);
+    });
+}
+function getFirebaseData() {
+    return FirebaseData;
+}
+async function replaceFirebaseData(datatosave) { // Replace entries based on the same name and date
+    if (datatosave===undefined || datatosave===null) return false; // no data to save
+    if (!firebase.isAuthReady || !firebase.userUid) {
+        console.log(`→ Waiting for authentication...`);
+        return false; // Firebase not ready. Waiting for authentication.
+    }
+    let debugcontext='';
+    try {
+        debugcontext = 'collection';
+        const messagesCollectionRef = collection(firebase.db, `artifacts/${firebase.firebaseConfig.appId}/public/data/${firebase.collectionName}`);     
+        debugcontext = 'query';
+        const q = query(
+        messagesCollectionRef,
+            ...Object.keys(datatosave)
+                .filter(key => {
+                    const k = key.toLowerCase();
+                    // Use !== to EXCLUDE the timestamp from the query (since exact timestamp matches are rare)
+                    return datatosave[key] !== undefined && k !== 'timestamp' && k !== 'time stamp' && k !== 'date' && !(datatosave[key] instanceof Timestamp)
+                })
+                .map(key => where(key, "==", datatosave[key]))
+            );                
+        debugcontext = 'getDocs';
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) { // Found existing records, delete them first
+            debugcontext = 'writeBatch';
+            const batch = writeBatch(firebase.db);
+            let deletedCount = 0;
+            querySnapshot.forEach((document) => {
+                debugcontext = 'doc';
+                const docRef = doc(messagesCollectionRef, document.id);
+                console.log(`→ Deleting DocID ${document.id}: ${docRef.path}`);
+                debugcontext = 'batch.delete';
+                batch.delete(docRef);
+                deletedCount++;
+            });
+
+            // Make sure you await here!
+            debugcontext = 'batch.commit()';
+            await batch.commit();
+            console.log(`✓ Deleted ${deletedCount} documents from ${firebase.collectionName}.`);
+        }
+
+        debugcontext = 'addDoc'
+        await addDoc(messagesCollectionRef, datatosave)
+        .then((docRef) => {
+            console.log(`✓ Added DocID ${docRef.id}: ${docRef.path}`);
+        })
+        .catch((error) => {
+            console.error(`✗ Error writing data ${JSON.stringify(tmpdata)}`);
+            return false;
+        });
+    } catch (error) {
+        console.error(`✗ ERROR saving data to firebase: ${debugcontext}<BR>${error}.`);
+        return false;
+    } finally {
+
+    }
+    return true; // Successful
+}
+
+async function deleteFirebaseData(datatodelete=undefined) { // Replace entries based on the same name and date
+    if (datatodelete===undefined || datatodelete===null) return false; // no data to delete
+    if (!firebase.isAuthReady || !firebase.userUid) {
+        console.log(`→ Waiting for authentication...`);
+        return false; // Firebase not ready. Waiting for authentication.
+    }
+    let debugcontext='';
+    try {
+        debugcontext = 'collection';
+        const messagesCollectionRef = collection(firebase.db, `artifacts/${firebase.firebaseConfig.appId}/public/data/${firebase.collectionName}`);
+        let q;     
+        debugcontext = `query`;
+        q = query(
+            messagesCollectionRef,
+            ...Object.keys(datatodelete)
+                .filter(key => datatodelete[key] !== undefined) // Skip empty values
+                .map(key => where(key, "==", datatodelete[key]))
+            );                    
+        debugcontext = 'getDocs';
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) { // Found existing records, delete them first
+            debugcontext = 'writeBatch';
+            const batch = writeBatch(firebase.db);
+            let deletedCount = 0;
+            querySnapshot.forEach((document) => {
+                debugcontext = 'doc';
+                const docRef = doc(messagesCollectionRef, document.id);
+                console.log(`→ Deleting DocID ${document.id}: ${docRef.path}`);
+                debugcontext = 'batch.delete()';
+                batch.delete(docRef);
+                deletedCount++;
+            });
+            // Make sure you await here!
+            debugcontext = 'batch.commit()';
+            await batch.commit();
+            console.log(`✓ Deleted ${deletedCount} documents from ${firebase.collectionName}.`);
+        } else {
+            console.log('✗ No matching records found');
+        }
+    } catch (error) {
+        console.error(`✗ ERROR saving data to firebase: ${debugcontext}<BR>${error}.`);
+        return false;
+    } finally {
+
+    }
+    return true; // Successful
+}
+async function waitForFirebaseAuth() {
+    //console.log("Waiting for Firebase authentication...");
+    return new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+            if (firebase.isAuthReady) {
+                clearInterval(checkInterval);
+                //console.log("✓ Authentication confirmed.");
+                resolve();
+            }
+        }, 500); // Check every 500ms
+    });
+}
+function createRowDataFromChange(change) {
+    const row = change.doc.data();
+    let newentry = { docID: change.doc.id };
+
+    // Sort keys
+    const keys = Object.keys(row).sort((a, b) => {
+        const lowerA = a.toLowerCase();
+        const lowerB = b.toLowerCase();
+        if (lowerA < lowerB) return -1;
+        if (lowerA > lowerB) return 1;
+        return 0;
+    });
+
+    // Fill in info
+    keys.forEach(key => {
+        if (key.toLocaleLowerCase() === 'date' || key.toLocaleLowerCase() === 'timestamp' || key.toLocaleLowerCase() === 'time stamp') {
+            if (row[key] instanceof Timestamp) {
+                newentry[key] = new Date(row[key].seconds * 1000 + row[key].nanoseconds / 1000000);
+            } else {
+                newentry[key] = new Date(row[key]);  // (typeof row[key]) === 'string')
+            }
+        } else if (key === 'value') {
+            newentry[key] = Number(row[key]);
+        } else {
+            newentry[key] = row[key];
+        }
+    });
+    return newentry;
+}
+function debug(msg) {
+    document.getElementById("debug").innerHTML = msg;
+    if (msg.toLowerCase().includes('error')) {
+        document.getElementById("debug").innerHTML = `<FONT COLOR=#F00>${msg}</FONT>`;
+    } else {
+        document.getElementById("debug").innerHTML = msg;
+        setTimeout(function() { document.getElementById("debug").innerHTML = ''; }, 5000); // Clears itself after 5 sec
+    }
+}
+function sortData() {
+    childrenData = childrenData.sort((a, b) => { 
+        const nameA = a.name.toLowerCase();
+        const nameB = b.name.toLowerCase();
+        if (nameA<nameB) return -1;
+        if (nameA>nameB) return +1;
+        const measureA = a.measure.toLowerCase();
+        const measureB = b.measure.toLowerCase();
+        if (measureA<measureB) return -1;
+        if (measureA>measureB) return +1;
+        return a.date.getTime() - b.date.getTime();
+    });
+}
+
+</script>
+</body>
+
+</html>
