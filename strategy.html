@@ -93,8 +93,6 @@
         #chartContainer {
             width: 100%;
             display: grid;
-            /* Create two equal columns */
-            grid-template-columns: 1fr 1fr; 
             gap: 20px;
             padding: 15px;
             align-items: start;
@@ -106,21 +104,16 @@
             border-radius: 8px;
             padding: 15px;
             box-shadow: 0 3px 10px var(--shadow-color);
-            height: 400px; /* Base height for bottom charts */
+            height: 450px; /* Base height for bottom charts */
         }
 
-        /* Chart 1: Top, Full Width, and Taller */
-        .chart-wrapper:first-child {
-            grid-column: 1 / span 2;
-            height: 500px;
-        }
 
         /* Stack charts vertically on small screens */
         @media (max-width: 800px) {
             #chartContainer {
                 grid-template-columns: 1fr;
             }
-            .chart-wrapper:first-child {
+            .chart-wrapper {
                 grid-column: 1;
             }
         }
@@ -146,15 +139,13 @@
 
 <div id="appContainer">
     <h1>Strategy.com mNav</h1>
+    <div id="Timestamp"></div>
     <div id="chartContainer">
         <div class="chart-wrapper">
          <canvas id="myChart1"></canvas>
         </div>
         <div class="chart-wrapper">
-            <canvas id="myChart2"></canvas>
-        </div>
-        <div class="chart-wrapper">
-            <canvas id="myChart3"></canvas>
+         <canvas id="myChart2"></canvas>
         </div>
     </div>
     
@@ -179,18 +170,20 @@ function updateCharts() {
     const latest = sorted[0];
 
     // 2. Update Charts with dynamic titles
+    document.getElementById("Timestamp").innerHTML = `Updated ${latest['Timestamp'].toLocaleString()}`;
     const latestMNav = latest['mNav'] ? latest['mNav'].toFixed(3) : '--';
     const latestBTCreserve = latest['BTC Reserve'] ? latest['BTC Reserve'].toLocaleString(0) : '--';
     const latestEV = latest['Enterprise Value'] ? latest['Enterprise Value'].toLocaleString(0) : '--';
 
+    // Update Chart 1 (mNav)
+    updateChart(data, `mNav (${latestMNav}x)`, 'myChart1', ['mNav']);
     
-    updateChart(data, `mNav (${latestMNav}x)`, 'myChart1', 'mNav');
-    updateChart(data, `Enterprise Value ($${latestEV}M)`, 'myChart2', 'Enterprise Value');
-    updateChart(data, `BTC Reserve ($${latestBTCreserve}M)`, 'myChart3', 'BTC Reserve');
+    // Update Chart 2 (Combined EV and BTC Reserve)
+    updateChart(data, `Enterprise Value ($${latestEV.toLocaleString()}M) | BTC Reserve ($${latestBTCreserve.toLocaleString()}M)`, 'myChart2', ['Enterprise Value', 'BTC Reserve']);    
 }
 
 const chartInstances = {};
-function updateChart(data, title, chartId, measure) {
+function updateChart(data, title, chartId, measures) {
     const canvas = document.getElementById(chartId);
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -202,67 +195,50 @@ function updateChart(data, title, chartId, measure) {
         return timeA - timeB;
     });
 
-    const datasetData = sortedData
-        .filter(entry => entry[measure] !== undefined && entry[measure] !== null)
-        .map(entry => ({
-            x: entry.Timestamp instanceof Date ? entry.Timestamp : new Date(entry.Timestamp),
-            y: entry[measure]
-        }));
+    // Define colors for the combined chart
+    const colors = {
+        'Enterprise Value': { border: 'rgb(0, 123, 255)', bg: 'rgba(0, 123, 255, 0.1)' },
+        'BTC Reserve': { border: 'rgb(40, 167, 69)', bg: 'rgba(40, 167, 69, 0.1)' },
+        'mNav': { border: 'rgb(0, 123, 255)', bg: 'rgba(0, 123, 255, 0.1)' }
+    };
+
+    const datasets = measures.map(measure => ({
+        label: measure,
+        data: sortedData
+            .filter(entry => entry[measure] !== undefined)
+            .map(entry => ({
+                x: entry.Timestamp instanceof Date ? entry.Timestamp : new Date(entry.Timestamp),
+                y: entry[measure]
+            })),
+        borderColor: colors[measure]?.border || '#6c757d',
+        backgroundColor: colors[measure]?.bg || 'transparent',
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: measures.length === 1, // Only fill if it's the single mNav chart
+        tension: 0.1
+    }));
 
     const options = {
         responsive: true,
         maintainAspectRatio: false,
-        animation: false,
         plugins: {
-            title: { 
-                display: true, 
-                text: title, 
-                font: {
-                    size: 18, // Increased font size
-                    weight: 'bold'
-                },
-                padding: { bottom: 20 }
-             },
-            legend: { display: false }
+            title: { display: true, text: title, font: { size: 18, weight: 'bold' } },
+            legend: { display: measures.length > 1 } // Show legend only for the combined chart
         },
         scales: {
-            x: {
-                type: 'time', // Sets the X-axis to display as dates
-                time: {
-                    unit: 'day',
-                    displayFormats: { day: 'MMM d, yyyy' }
-                },
-                title: { display: true, text: 'Date' }
-            },
-            y: {
-                beginAtZero: false,
-                ticks: {
-                    // Cleaner formatting for large numbers
-                    callback: (value) => value >= 1000 ? value.toLocaleString() : value
-                }
-            }
+            x: { type: 'time', time: { unit: 'day', displayFormats: { day: 'MMM d, yyyy' } } },
+            y: { ticks: { callback: (val) => val.toLocaleString() } }
         }
     };
 
     if (chartInstances[chartId]) {
-        chartInstances[chartId].data.datasets[0].data = datasetData;
+        chartInstances[chartId].data.datasets = datasets;
         chartInstances[chartId].options = options;
         chartInstances[chartId].update();
     } else {
         chartInstances[chartId] = new Chart(ctx, {
             type: 'line',
-            data: {
-                datasets: [{
-                    label: title,
-                    data: datasetData,
-                    borderColor: 'rgb(0, 123, 255)',
-                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    fill: true,
-                    tension: 0.1 // Smooths the line slightly
-                }]
-            },
+            data: { datasets },
             options: options
         });
     }
