@@ -753,22 +753,6 @@ function showTooltip(event, d) {
     updateInsetChart(d);
   }
 }
-function showTooltipOLD(event, d) {
-  const tooltip = d3.select('#tooltip');
-  if (d.opacity == 1) {
-    const mktcaptxt = (d.mktcap > 1000000000000 ? (d.mktcap / 1000000000000).toFixed(1) + 'T' : (d.mktcap > 1000000000 ? (d.mktcap / 1000000000).toFixed(1) + 'B' : (d.mktcap > 1000000 ? (d.mktcap / 1000000).toFixed(1) + 'M' : d.mktcap.toFixed(0))));
-    const quotedArray = [];
-    for (let i = 0; i < d.date.length; i++) {
-      quotedArray.push(`'${d.date[i]}'`);
-    }
-    const imgsrctxt = `https://quickchart.io/chart?w=120&h=100&c={type:'line',options:{legend:false,title:{display:false},scales:{yAxes:[{ticks:{fontSize:8,stepSize:20}}],xAxes:[{display:true,ticks:{fontSize:8,autoSkip:true}}]},plugins:{tickFormat:{suffix:'%'}}},data:{labels:[${quotedArray}],datasets:[
-{data:[${d.loss}],fill:false,borderColor:'%23c00000',borderDash:[1,1],borderWidth:1,pointRadius:0},
-{data:[${d.traj}],fill:false,borderColor:'blue',borderDash:[3,3],borderWidth:0.5,pointRadius:0},
-{data:[${d.price}],fill:false,borderColor:'blue',borderWidth:1,pointRadius:0}]}}`;
-    tooltip.html(`<TABLE class=tooltip><TR><TD COLSPAN=2>${d.rank}. <strong>${d.name}</strong></TD></TR><TR><TD COLSPAN=2><FONT COLOR=#808080>${d.sector}</FONT></TD></TR><TR><TD>Expected annual growth</TD><TD>${d.change}%</TD></TR><TR><TD>10%-ile drop from 52wk high</TD><TD>${d.drop}%</TD></TR><TR><TD>Market cap</TD><TD>${mktcaptxt}</TD></TR><TR><TD colspan=2><img src=\"${imgsrctxt}\"></TD></TR></TABLE>`).style('left', (event.pageX + 10) + 'px').style('top', (event.pageY - 20) + 'px').style('display', null).style('opacity', 1);
-  }
-}
-
 function updateInsetChart(data) {
   const insetwidth = 300;
   const insetheight = 200;
