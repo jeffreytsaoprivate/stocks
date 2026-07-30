@@ -3,92 +3,294 @@
 
 <title>Top stocks</title>
 <style>
-* {
-  font-family: Arial, sans-serif;
+:root {
+  --bg: #f4f6fb;
+  --card-bg: #ffffff;
+  --border: #e3e7ef;
+  --text: #1a2233;
+  --text-muted: #6b7280;
+  --accent: #2f5aff;
+  --accent-soft: #eef2ff;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px rgba(16, 24, 40, 0.06);
+  --radius: 14px;
 }
+
+* {
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Arial, sans-serif;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+/* ---------- Header ---------- */
+.app-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 0 4px;
+}
+.app-header h1 {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.info-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 18px;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+.info-btn:hover {
+  color: var(--accent);
+}
+.timestamp {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ---------- Layout cards ---------- */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+.chart-card {
+  padding: 16px;
+  overflow-x: auto;
+}
+.chart-card, .filters-card, .table-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.filters-card {
+  padding: 18px 16px;
+}
+.filter-group + .filter-group {
+  margin-top: 22px;
+}
+.filter-group h2 {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 0 0 10px 0;
+}
+.table-card {
+  padding: 4px;
+  overflow-x: auto;
+}
+
 #chart {
   width: 800px;
   height: 600px;
+  margin: 0 auto;
 }
+
+/* ---------- Tooltip ---------- */
 #tooltip {
   position: absolute;
-  background: white;
-  border: 1px solid gray;
-  border-radius: 5px;
-  padding: 10px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
   opacity: 0.0;
-  transition: opacity 0.2s;
+  transition: opacity 0.15s ease;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.14);
+  font-size: 13px;
+  max-width: 320px;
+  z-index: 50;
+  pointer-events: auto;
 }
 .tooltip {
   border-collapse: collapse;
   width: 100%;
 }
 .tooltip th, .tooltip td {
-  border: 1px solid #c0c0c0;
-  padding: 8px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 5px 4px;
   text-align: left;
 }
-.datatable th {
-  background-color: #f2f2f2;
+.tooltip tr:last-child th,
+.tooltip tr:last-child td {
+  border-bottom: none;
 }
+
+/* ---------- Data table ---------- */
 .datatable {
   border-collapse: collapse;
   width: 100%;
+  font-size: 13.5px;
 }
 .datatable th, .datatable td {
-  border: 1px solid #c0c0c0;
-  padding: 8px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
   text-align: left;
 }
 .datatable th {
-  background-color: #f2f2f2;
+  background-color: var(--accent-soft);
+  color: #1e2a55;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  position: sticky;
+  top: 0;
+}
+.datatable tbody tr:nth-child(even) {
+  background-color: #fafbfd;
 }
 .datatable tr:hover {
-      background-color: #f0f0f0;
-    }
+  background-color: #eef2ff;
+}
+.datatable td {
+  cursor: pointer;
+}
+.datatable th a {
+  font-size: 11px;
+}
+#filterName {
+  font-size: 13px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: normal;
+}
+#filterNameCancel {
+  font-size: 12px;
+  padding: 4px 8px;
+  margin-left: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+#filterNameCancel:hover {
+  background: #f3f4f6;
+  color: var(--text);
+}
 
 .hidden {
   display: none;
 }
-a:hover {color: red;}
-a { color: black; text-decoration: none;}
+a:hover {color: var(--accent);}
+a { color: var(--text-muted); text-decoration: none;}
+
+/* ---------- Category / filter buttons ---------- */
+.category-container-class {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .category-container-class input[type='radio'] {
   display: none;
 }
 .category-button {
   display: block;
-  padding: 2px 10px;
-  border: 1px solid #ccc;
+  padding: 6px 12px;
+  border: 1px solid transparent;
   cursor: pointer;
-  border-radius: 5px;
-  width: 160px;
-  font-weight: normal;
-  opacity: 0.5;
-  margin-top: 5px;
+  border-radius: 8px;
+  width: 100%;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.6;
+  margin-top: 0;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+.category-button:hover {
+  opacity: 0.9;
+  transform: translateX(1px);
 }
 .category-button.checked {
-  border: 2px solid #000;
-  font-weight: bold;
+  border: 1px solid rgba(0,0,0,0.35);
+  font-weight: 700;
   opacity: 1;
+  box-shadow: 0 0 0 2px rgba(47, 90, 255, 0.18), inset 0 0 0 1px rgba(255,255,255,0.4);
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 880px) {
+  .main-grid {
+    grid-template-columns: 1fr;
+  }
+  .filters-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .filter-group + .filter-group {
+    margin-top: 0;
+  }
 }
 </style>
 </head>
 
 <body>
-  <table width=100% class='layout'><TR>
-  <TD colspan=2>
-  <FONT SIZE='+2'>Top stocks <A onclick='showHelpInfo(event)' onmouseover='showHelpInfo(event)'>&#9432;</FONT></A><BR>
-  <DIV id='updatetimestamp'></DIV>
-  </TD></TR>
-  <TR>
-  <TD width=85% align=middle><div id='chart'></div></TD>
-  <TD valign=top width=15%>
-    <B>Sector</B><div id='category-container' class='category-container-class'></div><BR>
-    <B>Prediction error</B><div id='prederr-container' class='category-container-class'></div>
-  </TD></TR>
-  <TR><TD colspan=2><div id='table-container'></div></TD></TR>
-  </TABLE>
-  <div id='tooltip'></div>
+  <div class="page">
+    <header class="app-header">
+      <h1>Top stocks <button type="button" class="info-btn" onclick="showHelpInfo(event)" onmouseover="showHelpInfo(event)" aria-label="About this analysis">&#9432;</button></h1>
+      <div id="updatetimestamp" class="timestamp"></div>
+    </header>
+
+    <div class="main-grid">
+      <div class="chart-card">
+        <div id="chart"></div>
+      </div>
+      <aside class="filters-card">
+        <div class="filter-group">
+          <h2>Sector</h2>
+          <div id="category-container" class="category-container-class"></div>
+        </div>
+        <div class="filter-group">
+          <h2>Prediction error</h2>
+          <div id="prederr-container" class="category-container-class"></div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="table-card">
+      <div id="table-container"></div>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
 
 <script src='https://d3js.org/d3.v7.min.js'></script>
 <script src='https://jeffreytsaoprivate.github.io/stocks/topstocks.js'></script>
