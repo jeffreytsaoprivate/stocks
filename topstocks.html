@@ -118,6 +118,63 @@ html, body {
   margin: 0 auto;
 }
 
+/* ---------- Zoom controls ---------- */
+.chart-layout {
+  display: grid;
+  grid-template-columns: 40px 800px;
+  grid-template-rows: 600px 40px;
+  column-gap: 6px;
+  row-gap: 6px;
+  width: max-content;
+  margin: 0 auto;
+}
+.zoom-y-wrap {
+  grid-column: 1;
+  grid-row: 1;
+  width: 40px;
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.zoom-y-wrap input[type='range'] {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  -webkit-appearance: slider-vertical;
+  width: 20px;
+  height: 520px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.zoom-y-wrap .zoom-value {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.chart-anchor {
+  grid-column: 2;
+  grid-row: 1;
+}
+.zoom-x-wrap {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 800px;
+}
+.zoom-x-wrap input[type='range'] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+.zoom-x-wrap .zoom-value {
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 32px;
+  text-align: right;
+}
+
 /* ---------- Tooltip ---------- */
 #tooltip {
   position: absolute;
@@ -271,7 +328,17 @@ a { color: var(--text-muted); text-decoration: none;}
 
     <div class="main-grid">
       <div class="chart-card">
-        <div id="chart"></div>
+        <div class="chart-layout">
+          <div class="zoom-y-wrap" title="Zoom Y (drop)">
+            <input type="range" id="zoomYSlider" min="0" max="100" value="0" step="1">
+            <span class="zoom-value" id="zoomYValue">0%</span>
+          </div>
+          <div class="chart-anchor" id="chart"></div>
+          <div class="zoom-x-wrap" title="Zoom X (growth)">
+            <input type="range" id="zoomXSlider" min="0" max="100" value="0" step="1">
+            <span class="zoom-value" id="zoomXValue">0%</span>
+          </div>
+        </div>
       </div>
       <aside class="filters-card">
         <div class="filter-group">
@@ -356,7 +423,48 @@ if (typeof updatetimestamp !== 'undefined') {
 const width = 800;
 const height = 600;
 svg = d3.select('#chart').append('svg').attr('width', width).attr('height', height);
+svg.append('defs').append('clipPath').attr('id', 'plot-clip')
+  .append('rect').attr('x', 100).attr('y', 50).attr('width', width - 200).attr('height', height - 100);
+const chartRoot = svg.append('g');
+svg.on('click', clickChart);
+
+//------------------------------------------------
+// Zoom state (interactive zoom into the upper-left corner of the bubble chart)
+const MaxAnnualGrowthFold = 5;
+const fullXMax = d3.max(data, d => Math.min(d.change, MaxAnnualGrowthFold * 100));
+const fullYMin = d3.min(data, d => d.drop);
+const minXMax = fullXMax * 0.05;   // most-zoomed-in X domain (upper-left = small growth values)
+const minYMin = fullYMin * 0.05;   // most-zoomed-in Y domain (upper-left = small drop magnitude)
+let currentXMax = fullXMax;
+let currentYMin = fullYMin;
+
+let zoomRedrawScheduled = false;
+function setZoomFromSliders() {
+  const xPct = parseInt(document.getElementById('zoomXSlider').value, 10);
+  const yPct = parseInt(document.getElementById('zoomYSlider').value, 10);
+  currentXMax = fullXMax - (xPct / 100) * (fullXMax - minXMax);
+  currentYMin = fullYMin + (yPct / 100) * (minYMin - fullYMin);
+  document.getElementById('zoomXValue').textContent = xPct + '%';
+  document.getElementById('zoomYValue').textContent = yPct + '%';
+  if (!zoomRedrawScheduled) {
+    zoomRedrawScheduled = true;
+    requestAnimationFrame(() => {
+      zoomRedrawScheduled = false;
+      updateBubbleChart();
+    });
+  }
+}
+document.getElementById('zoomXSlider').addEventListener('input', setZoomFromSliders);
+document.getElementById('zoomYSlider').addEventListener('input', setZoomFromSliders);
 const viewcategories = ['Show all', 'Basic Materials', 'Communication Services', 'Consumer Cyclical', 'Consumer Defensive', 'Energy', 'Financial Services', 'Healthcare', 'Industrials', 'Real Estate', 'Technology', 'Utilities', 'Others'];
+const knownSectors = viewcategories.filter(c => c !== 'Show all' && c !== 'Others');
+function sectorMatches(d, category) {
+  if (category === 'Show all' || category === 'Show All') return true;
+  if (category === 'Others') {
+    return !knownSectors.some(s => d.sector.startsWith(s) || d.sector.endsWith(s));
+  }
+  return d.sector.startsWith(category);
+}
 const categorycolors = ['#ffffff', '#FFECD1', '#F00000', '#0080FF', '#80FF00', '#C0C000', '#00FF00', '#008000', '#C0C0C0', '#800080', '#0000FF', '#808080', '#000000'];
 const categoryfontcolors = ['#000', '#000', '#fff', '#fff', '#000', '#fff', '#000', '#fff', '#000', '#fff', '#fff', '#fff', '#fff'];
 
@@ -453,7 +561,7 @@ function updateOpacity() {
     PredErrThreshold = parseInt(showPredErr.replace('% or less',''), 10); // 95 from "95%+"
   }
   function matchesSector(d) {
-    return (showCategory === 'Show all' || showCategory === 'Show All') ? true : d.sector.startsWith(showCategory);
+    return sectorMatches(d, showCategory);
   }
   function matchesPredErr(d) {
     return PredErrThreshold === null ? true : ( (d.AllPredErr[0] || 0) <= PredErrThreshold );
@@ -501,14 +609,14 @@ function updateGraphics() {
 }
 
 function updateBubbleChart() {
-  const MaxAnnualGrowthFold = 5;
   //const xExtent = [Math.log10(Math.max(d3.min(data, d => d.change)/100+1,0.00001)), Math.log10(d3.max(data, d => d.change)/100 + 1)];
-  const xExtent = [0, d3.max(data, d => Math.min(d.change, MaxAnnualGrowthFold*100))];
-  const yExtent = [d3.min(data, d => d.drop), 0];
+  const xExtent = [0, currentXMax];
+  const yExtent = [currentYMin, 0];
   const xScale = d3.scaleLinear().domain(xExtent).range([100, width - 100]);
   const yScale = d3.scaleLinear().domain(yExtent).range([height - 50, 50]);
   const radiusScale = d3.scaleSqrt().domain(d3.extent(data, d => d.mktcap)).range([2, 20]);
-  svg.selectAll('*').remove();
+  chartRoot.selectAll('*').remove();
+  const plotArea = chartRoot.append('g').attr('clip-path', 'url(#plot-clip)');
   if (true) {
     const textData = [{
       x: (xExtent[0] + xExtent[1]) / 2,
@@ -527,11 +635,11 @@ function updateBubbleChart() {
       dx: '0',
       dy: '-40'
     }, ];
-    svg.selectAll('text').data(textData).enter().append('text').attr('transform', d => 'rotate(' + d.angle + ' ' + xScale(d.x) + ' ' + yScale(d.y) + ')').attr('x', d => xScale(d.x)).attr('y', d => yScale(d.y)).text(d => d.text).attr('fill', 'black').attr('text-anchor', d => d.anchorpos).attr('dx', d => d.dx).attr('dy', d => d.dy).style('font-weight', 'bold');
+    chartRoot.selectAll('text').data(textData).enter().append('text').attr('transform', d => 'rotate(' + d.angle + ' ' + xScale(d.x) + ' ' + yScale(d.y) + ')').attr('x', d => xScale(d.x)).attr('y', d => yScale(d.y)).text(d => d.text).attr('fill', 'black').attr('text-anchor', d => d.anchorpos).attr('dx', d => d.dx).attr('dy', d => d.dy).style('font-weight', 'bold');
   }
   if (true) {
-    svg.append('g').attr('class', 'x-axis').attr('transform', 'translate(0,50)').call(d3.axisBottom(xScale));
-    svg.append('g').attr('class', 'y-axis').attr('transform', 'translate(100,0)').call(d3.axisLeft(yScale));
+    chartRoot.append('g').attr('class', 'x-axis').attr('transform', 'translate(0,50)').call(d3.axisBottom(xScale));
+    chartRoot.append('g').attr('class', 'y-axis').attr('transform', 'translate(100,0)').call(d3.axisLeft(yScale));
   }
 
   {
@@ -541,23 +649,23 @@ function updateBubbleChart() {
         var line = d3.line()
             .x((d, j) => xScale(Math.min(item.AllRobustChange[j],MaxAnnualGrowthFold*100)))
             .y((d, j) => yScale(item.AllWorstDrop[j]));
-        svg.append('path').datum(d3.range(item.datevalue.length)).attr('d', line).attr("fill", "none").attr("stroke", "gray").attr("stroke-width", 1).attr("stroke-dasharray", "1,1");
+        plotArea.append('path').datum(d3.range(item.datevalue.length)).attr('d', line).attr("fill", "none").attr("stroke", "gray").attr("stroke-width", 1).attr("stroke-dasharray", "1,1");
     }
   }
 
   if (showCategory == 'Show all') {
     //---------Add all circles ------------------------------
     data_filtered = data.filter(d => d.opacity != 1);
-    bubbles = svg.selectAll('circle').data(data_filtered).enter().append('circle').on('click', pickItem)
+    bubbles = plotArea.selectAll('circle').data(data_filtered).enter().append('circle').on('click', pickItem)
           .attr('cx', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100)))
           .attr('cy', d => yScale(d.drop))
           .attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', d => (d.opacity == 1 ? 'grey' : 'none')).attr('stroke-width', 1);
     data_filtered = data.filter(d => d.opacity == 1);
-    bubbles = svg.selectAll('circle1').data(data_filtered).enter().append('circle').on('mouseover', showTooltip).on('mousemove', showTooltip).on('click', pickItem).on('mouseout', hideTooltip).attr('cx', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100))).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', d => (d.opacity == 1 ? 'grey' : 'none')).attr('stroke-width', 1);
+    bubbles = plotArea.selectAll('circle1').data(data_filtered).enter().append('circle').on('mouseover', showTooltip).on('mousemove', showTooltip).on('click', pickItem).on('mouseout', hideTooltip).attr('cx', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100))).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', d => (d.opacity == 1 ? 'grey' : 'none')).attr('stroke-width', 1);
 
     //---------Add labels for top 10 ---------------
     const top10Data = data.filter(d => d.rank >= 1 && d.rank <= 10 && d.opacity === 1); // Only show labels for fully opaque (selected or 'Show all') items
-    svg.selectAll('.rank-label')
+    plotArea.selectAll('.rank-label')
         .data(top10Data).enter().append('text')
         .attr('class', 'rank-label') // Add a class for specific styling/selection if needed
         .attr('x', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100)) + radiusScale(d.mktcap)+5) // Position label to the right of the bubble
@@ -568,16 +676,16 @@ function updateBubbleChart() {
         .attr('font-weight', 'normal')
         .attr('text-anchor', 'start'); // Align text to the start (left)
   } else {
-    data_filtered = data.filter(d => d.opacity != 1 && d.sector.startsWith(showCategory) == false);
-    bubbles = svg.selectAll('circle').data(data_filtered).enter().append('circle').attr('cx', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100))).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'none').attr('stroke-width', 1);
-    data_filtered = data.filter(d => d.opacity != 1 && d.sector.startsWith(showCategory));
-    bubbles = svg.selectAll('circle1').data(data_filtered).enter().append('circle').on('click', pickItem).attr('cx', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100))).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'none').attr('stroke-width', 1);
+    data_filtered = data.filter(d => d.opacity != 1 && sectorMatches(d, showCategory) == false);
+    bubbles = plotArea.selectAll('circle').data(data_filtered).enter().append('circle').attr('cx', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100))).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'none').attr('stroke-width', 1);
+    data_filtered = data.filter(d => d.opacity != 1 && sectorMatches(d, showCategory));
+    bubbles = plotArea.selectAll('circle1').data(data_filtered).enter().append('circle').on('click', pickItem).attr('cx', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100))).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'none').attr('stroke-width', 1);
     data_filtered = data.filter(d => d.opacity == 1);
-    bubbles = svg.selectAll('circle2').data(data_filtered).enter().append('circle').on('mouseover', showTooltip).on('mousemove', showTooltip).on('click', pickItem).on('mouseout', hideTooltip).attr('cx', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100))).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'grey').attr('stroke-width', 1);
+    bubbles = plotArea.selectAll('circle2').data(data_filtered).enter().append('circle').on('mouseover', showTooltip).on('mousemove', showTooltip).on('click', pickItem).on('mouseout', hideTooltip).attr('cx', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100))).attr('cy', d => yScale(d.drop)).attr('r', d => radiusScale(d.mktcap)).attr('opacity', d => d.opacity).attr('fill', d => d.color).attr('stroke', 'grey').attr('stroke-width', 1);
 
     //---------Add labels for top 10 ---------------
-    const top10Data = data.filter(d => d.rank >= 1 && d.rank <= 10 && d.opacity === 1 && d.sector.startsWith(showCategory)); // Only show labels for fully opaque (selected or 'Show all') items
-    svg.selectAll('.rank-label')
+    const top10Data = data.filter(d => d.rank >= 1 && d.rank <= 10 && d.opacity === 1 && sectorMatches(d, showCategory)); // Only show labels for fully opaque (selected or 'Show all') items
+    plotArea.selectAll('.rank-label')
         .data(top10Data).enter().append('text')
         .attr('class', 'rank-label') // Add a class for specific styling/selection if needed
         .attr('x', d => xScale(Math.min(d.change,MaxAnnualGrowthFold*100)) + radiusScale(d.mktcap)+5) // Position label to the right of the bubble
@@ -588,7 +696,6 @@ function updateBubbleChart() {
         .attr('font-weight', 'normal')
         .attr('text-anchor', 'start'); // Align text to the start (left)
   }
-  svg.on('click', clickChart);
 }
 
 function updateTable() {
@@ -708,7 +815,8 @@ function sortTable(tableid, columnIndex, ascending = true) {
   const table = document.getElementById(tableid);
   const tbody = table.querySelector('tbody');
   const rows = Array.from(tbody.querySelectorAll('tr'));
-  if (columnIndex == 0 || columnIndex == 4 || columnIndex == 5) {
+  if (columnIndex == 0) {
+    // Rank: plain integer
     rows.sort((a, b) => {
       const cellA = parseInt(a.cells[columnIndex].textContent);
       const cellB = parseInt(b.cells[columnIndex].textContent);
@@ -718,7 +826,19 @@ function sortTable(tableid, columnIndex, ascending = true) {
         return (cellA < cellB ? 1 : (cellA > cellB ? -1 : 0))
       }
     });
-  } else if (columnIndex == 3) {
+  } else if (columnIndex == 5 || columnIndex == 6) {
+    // Expected annual growth / Drop from 52-wk high: percentages, can be negative and decimal
+    rows.sort((a, b) => {
+      const cellA = parseFloat(a.cells[columnIndex].textContent);
+      const cellB = parseFloat(b.cells[columnIndex].textContent);
+      if (ascending) {
+        return (cellA < cellB ? -1 : (cellA > cellB ? 1 : 0))
+      } else {
+        return (cellA < cellB ? 1 : (cellA > cellB ? -1 : 0))
+      }
+    });
+  } else if (columnIndex == 4) {
+    // Market Cap: has a T/B/M suffix
     rows.sort((a, b) => {
       const strA = a.cells[columnIndex].textContent;
       const strB = b.cells[columnIndex].textContent;
@@ -731,6 +851,7 @@ function sortTable(tableid, columnIndex, ascending = true) {
       }
     });
   } else {
+    // Symbol / Company / Sector: plain string compare
     rows.sort((a, b) => {
       const cellA = a.cells[columnIndex].textContent;
       const cellB = b.cells[columnIndex].textContent;
@@ -806,7 +927,7 @@ function pickItem(event, d) {
     highlightItem = d.symbol;
   } else if (highlightItem == d.symbol) {
     highlightItem = null;
-  } else if (d.sector.startsWith(showCategory) || showCategory == 'Show all') {
+  } else if (sectorMatches(d, showCategory)) {
     highlightItem = d.symbol;
   }
   updateOpacity();
