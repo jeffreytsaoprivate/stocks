@@ -1,136 +1,153 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strategy.com mNav</title>
+    <title>Strategy.com mNav Dashboard</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --primary-color: #007bff; /* A nice blue for accents */
-            --secondary-color: #6c757d; /* Grey for text */
-            --background-light: #f8f9fa; /* Light background for body */
-            --card-background: #ffffff; /* White background for cards/charts */
-            --border-color: #dee2e6; /* Light grey border */
-            --shadow-color: rgba(0, 0, 0, 0.08); /* Subtle shadow */
-            --font-family-primary: 'Helvetica Neue', Arial, sans-serif;
-            --chart-grid-color: rgba(0, 0, 0, 0.1);
-            --chart-font-color: #343a40; /* Darker text for charts */
-            --chart-line-thickness: 2; /* Default line thickness */
-
-            /* Percentile Colors & Styles */
-            --p3-color: #dc3545; /* Red for 3rd percentile */
-            --p10-color: #ffc107; /* Orange for 10th percentile */
-            --p25-color: #17a2b8; /* Cyan for 25th percentile */
-            --p50-color: #28a745; /* Green for 50th percentile */
-            --p75-color: #17a2b8; /* Cyan for 75th percentile */
-            --p90-color: #ffc107; /* Orange for 90th percentile */
-            --p97-color: #dc3545; /* Red for 97th percentile */
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --border-color: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-green: #34d399;
+            --accent-purple: #a855f7;
+            --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+            --font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }
 
-        html {
-            text-align: center;
-            scroll-behavior: smooth;
+        * {
+            box-sizing: border-box;
         }
 
         body {
-            text-align: center;
-            background-color: var(--background-light);
+            background-color: var(--bg-color);
             margin: 0;
-            padding: 10px; /* Reduced padding */
-            font-size: 1rem; /* Slightly smaller font for compactness */
-            font-family: var(--font-family-primary);
-            color: var(--secondary-color);
+            padding: 24px 16px;
+            font-family: var(--font-family);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
         }
 
-        h1, h2, h3 {
-            color: var(--primary-color);
-            text-align: center;
-            margin-bottom: 8px; /* Reduced margin */
-            font-weight: 600;
-        }
-        h1 {
-            font-size: 2.2rem; /* Reduced font size */
-            margin-top: 0;
-        }
-        h2 {
-            font-size: 1.6rem; /* Reduced font size */
-            text-align: left;
-            margin-bottom: 3px; /* Reduced margin */
-            padding-left: 5px;
-        }
-        h3 {
-            font-size: 1.3rem; /* Reduced font size */
-            text-align: left;
-            text-decoration: none;
-            border-bottom: 1px solid var(--border-color); /* Thinner border */
-            padding-bottom: 3px; /* Reduced padding */
-            margin-top: 15px; /* Reduced margin */
-        }
-
-        ol {
-            margin: 5px 0; /* Reduced margin */
-            padding-left: 20px;
-            text-align: left;
-        }
-
-        /* Container for the entire application */
         #appContainer {
-            max-width: 1200px;
-            margin: 15px auto; /* Reduced margin */
-            background-color: var(--card-background);
-            padding: 20px; /* Reduced padding */
-            border-radius: 12px;
-            box-shadow: 0 6px 15px var(--shadow-color); /* Slightly smaller shadow */
+            width: 100%;
+            max-width: 1280px;
             display: flex;
             flex-direction: column;
-            gap: 15px; /* Reduced gap */
-            align-items: center;
+            gap: 24px;
         }
 
-        /* Updated Grid Container */
-        #chartContainer {
-            width: 100%;
+        /* Top Header Navigation Bar */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header-title h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin: 0;
+            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-title p {
+            margin: 4px 0 0 0;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .timestamp-badge {
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent-blue);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.825rem;
+            font-weight: 500;
+        }
+
+        /* Metric Summary Cards */
+        .metrics-grid {
             display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        .metric-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px 20px;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            border-color: #475569;
+        }
+
+        .metric-label {
+            font-size: 0.825rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 1.85rem;
+            font-weight: 700;
+            margin-top: 8px;
+            color: var(--text-primary);
+        }
+
+        /* Charts Layout */
+        #chartContainer {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
             gap: 20px;
-            padding: 15px;
-            align-items: start;
+            width: 100%;
         }
 
         .chart-wrapper {
-            background-color: var(--card-background);
+            background-color: var(--card-bg);
             border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 15px;
-            box-shadow: 0 3px 10px var(--shadow-color);
-            height: 450px; /* Base height for bottom charts */
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            height: 440px;
+            position: relative;
         }
 
-
-        /* Stack charts vertically on small screens */
-        @media (max-width: 800px) {
+        @media (max-width: 960px) {
             #chartContainer {
                 grid-template-columns: 1fr;
-            }
-            .chart-wrapper {
-                grid-column: 1;
             }
         }
 
         #debug {
-            margin-top: 15px; /* Reduced margin */
-            font-size: 0.85rem; /* Slightly smaller font */
-            padding: 8px; /* Reduced padding */
-            /* border-left: 4px solid #ccc; */ /* Thinner border */
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-align: center;
+            min-height: 20px;
         }
-
-        sup {
-            vertical-align: super;
-            font-size: 0.75em; /* Slightly smaller */
-        }
-
     </style>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
@@ -138,14 +155,37 @@
 <body>
 
 <div id="appContainer">
-    <h1>Strategy.com mNav</h1>
-    <div id="Timestamp"></div>
+    <div class="dashboard-header">
+        <div class="header-title">
+            <h1>Strategy.com mNav Dashboard</h1>
+            <p>Real-time corporate treasury & NAV analytics</p>
+        </div>
+        <div id="Timestamp" class="timestamp-badge">Awaiting data...</div>
+    </div>
+
+    <!-- Stat Cards Summary Bar -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-label">mNav Ratio</div>
+            <div id="kpi-mnav" class="metric-value">--</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Enterprise Value ($M)</div>
+            <div id="kpi-ev" class="metric-value">--</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">BTC Reserve ($M)</div>
+            <div id="kpi-btc" class="metric-value">--</div>
+        </div>
+    </div>
+
+    <!-- Chart Grid Section -->
     <div id="chartContainer">
         <div class="chart-wrapper">
-         <canvas id="myChart1"></canvas>
+            <canvas id="myChart1"></canvas>
         </div>
         <div class="chart-wrapper">
-         <canvas id="myChart2"></canvas>
+            <canvas id="myChart2"></canvas>
         </div>
     </div>
     
@@ -169,65 +209,159 @@ function updateCharts() {
     const sorted = [...data].sort((a, b) => b.Timestamp - a.Timestamp);
     const latest = sorted[0];
 
-    // 2. Update Charts with dynamic titles
-    document.getElementById("Timestamp").innerHTML = `Updated ${latest['Timestamp'].toLocaleString()}`;
+    // 2. Update Header Timestamp & Cards
+    document.getElementById("Timestamp").innerText = `Updated ${latest['Timestamp'].toLocaleString()}`;
+    
     const latestMNav = latest['mNav'] ? latest['mNav'].toFixed(3) : '--';
-    const latestBTCreserve = latest['BTC Reserve'] ? latest['BTC Reserve'].toLocaleString(0) : '--';
-    const latestEV = latest['Enterprise Value'] ? latest['Enterprise Value'].toLocaleString(0) : '--';
+    const latestBTCreserve = latest['BTC Reserve'] ? latest['BTC Reserve'].toLocaleString() : '--';
+    const latestEV = latest['Enterprise Value'] ? latest['Enterprise Value'].toLocaleString() : '--';
+
+    document.getElementById("kpi-mnav").innerText = latestMNav !== '--' ? `${latestMNav}x` : '--';
+    document.getElementById("kpi-ev").innerText = latestEV !== '--' ? `$${latestEV}` : '--';
+    document.getElementById("kpi-btc").innerText = latestBTCreserve !== '--' ? `$${latestBTCreserve}` : '--';
 
     // Update Chart 1 (mNav)
-    updateChart(data, `mNav (${latestMNav}x)`, 'myChart1', ['mNav']);
+    updateChart(data, `mNav Multiple Trajectory`, 'myChart1', ['mNav']);
     
-    // Update Chart 2 (Combined EV and BTC Reserve)
-    updateChart(data, `Enterprise Value ($${latestEV.toLocaleString()}M) | BTC Reserve ($${latestBTCreserve.toLocaleString()}M)`, 'myChart2', ['Enterprise Value', 'BTC Reserve']);    
+    // Update Chart 2 (Combined EV and BTC Reserve sharing single Y-scale)
+    updateChart(data, `Enterprise Value vs. BTC Reserve ($M)`, 'myChart2', ['Enterprise Value', 'BTC Reserve']);    
 }
 
 const chartInstances = {};
+let activeHoverX = null; // Shared synchronized hover state across charts
+
+// Custom Chart.js plugin to draw vertical crosshair line across linked charts
+const crosshairPlugin = {
+    id: 'crosshair',
+    afterDraw: (chart) => {
+        if (activeHoverX !== null && chart.chartArea) {
+            const { top, bottom } = chart.chartArea;
+            const xScale = chart.scales.x;
+            const xPixel = xScale.getPixelForValue(activeHoverX);
+
+            if (xPixel >= chart.chartArea.left && xPixel <= chart.chartArea.right) {
+                const ctx = chart.ctx;
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(xPixel, top);
+                ctx.lineTo(xPixel, bottom);
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.strokeStyle = 'rgba(248, 250, 252, 0.5)';
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+    }
+};
+
+Chart.register(crosshairPlugin);
+
+function createGradient(ctx, colorStart, colorEnd) {
+    const gradient = ctx.createLinearGradient(0, 0, 0, 350);
+    gradient.addColorStop(0, colorStart);
+    gradient.addColorStop(1, colorEnd);
+    return gradient;
+}
+
 function updateChart(data, title, chartId, measures) {
     const canvas = document.getElementById(chartId);
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     
-    // Sort data chronologically using the Timestamp field
     const sortedData = [...data].sort((a, b) => {
         const timeA = a.Timestamp instanceof Date ? a.Timestamp.getTime() : new Date(a.Timestamp).getTime();
         const timeB = b.Timestamp instanceof Date ? b.Timestamp.getTime() : new Date(b.Timestamp).getTime();
         return timeA - timeB;
     });
 
-    // Define colors for the combined chart
-    const colors = {
-        'Enterprise Value': { border: 'rgb(0, 123, 255)', bg: 'rgba(0, 123, 255, 0.1)' },
-        'BTC Reserve': { border: 'rgb(40, 167, 69)', bg: 'rgba(40, 167, 69, 0.1)' },
-        'mNav': { border: 'rgb(0, 123, 255)', bg: 'rgba(0, 123, 255, 0.1)' }
+    const styleConfigs = {
+        'mNav': { border: '#38bdf8', fillStart: 'rgba(56, 189, 248, 0.25)', fillEnd: 'rgba(56, 189, 248, 0.0)' },
+        'Enterprise Value': { border: '#818cf8', fillStart: 'rgba(129, 140, 248, 0.15)', fillEnd: 'rgba(129, 140, 248, 0.0)' },
+        'BTC Reserve': { border: '#34d399', fillStart: 'rgba(52, 211, 153, 0.15)', fillEnd: 'rgba(52, 211, 153, 0.0)' }
     };
 
-    const datasets = measures.map(measure => ({
-        label: measure,
-        data: sortedData
-            .filter(entry => entry[measure] !== undefined)
-            .map(entry => ({
-                x: entry.Timestamp instanceof Date ? entry.Timestamp : new Date(entry.Timestamp),
-                y: entry[measure]
-            })),
-        borderColor: colors[measure]?.border || '#6c757d',
-        backgroundColor: colors[measure]?.bg || 'transparent',
-        borderWidth: 2,
-        pointRadius: 0,
-        fill: measures.length === 1, // Only fill if it's the single mNav chart
-        tension: 0.1
-    }));
+    const datasets = measures.map((measure) => {
+        const style = styleConfigs[measure] || { border: '#94a3b8', fillStart: 'transparent', fillEnd: 'transparent' };
+        return {
+            label: measure,
+            data: sortedData
+                .filter(entry => entry[measure] !== undefined)
+                .map(entry => ({
+                    x: entry.Timestamp instanceof Date ? entry.Timestamp.getTime() : new Date(entry.Timestamp).getTime(),
+                    y: entry[measure]
+                })),
+            borderColor: style.border,
+            backgroundColor: createGradient(ctx, style.fillStart, style.fillEnd),
+            borderWidth: 2.5,
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            pointHoverBackgroundColor: style.border,
+            fill: true,
+            tension: 0.35
+        };
+    });
 
     const options = {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
-            title: { display: true, text: title, font: { size: 18, weight: 'bold' } },
-            legend: { display: measures.length > 1 } // Show legend only for the combined chart
+            title: { 
+                display: true, 
+                text: title, 
+                color: '#f8fafc',
+                font: { family: 'Inter', size: 15, weight: '600' },
+                padding: { bottom: 20 },
+                align: 'start'
+            },
+            legend: { 
+                display: measures.length > 1,
+                position: 'top',
+                align: 'end',
+                labels: { color: '#94a3b8', usePointStyle: true, pointStyle: 'circle' }
+            },
+            tooltip: {
+                backgroundColor: '#0f172a',
+                titleColor: '#f8fafc',
+                bodyColor: '#cbd5e1',
+                borderColor: '#334155',
+                borderWidth: 1,
+                padding: 12,
+                boxPadding: 6,
+                usePointStyle: true,
+                callbacks: {
+                    label: function(context) {
+                        let label = context.dataset.label || '';
+                        if (label) {
+                            label += ': ';
+                        }
+                        if (context.parsed.y !== null) {
+                            const val = context.parsed.y;
+                            // Check if the current measure is mNav or EV/BTC Reserve
+                            if (context.dataset.label === 'mNav') {
+                                label += val.toFixed(3);
+                            } else {
+                                // Formats with commas and 0 decimal places
+                                label += Math.round(val).toLocaleString();
+                            }
+                        }
+                        return label;
+                    }
+                }
+            }
         },
         scales: {
-            x: { type: 'time', time: { unit: 'day', displayFormats: { day: 'MMM d, yyyy' } } },
-            y: { ticks: { callback: (val) => val.toLocaleString() } }
+            x: { 
+                type: 'time', 
+                time: { unit: 'day', displayFormats: { day: 'MMM d' } },
+                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                ticks: { color: '#94a3b8', font: { family: 'Inter', size: 11 } }
+            },
+            y: { 
+                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                ticks: { color: '#94a3b8', font: { family: 'Inter', size: 11 }, callback: (val) => val.toLocaleString() } 
+            }
         }
     };
 
@@ -236,22 +370,83 @@ function updateChart(data, title, chartId, measures) {
         chartInstances[chartId].options = options;
         chartInstances[chartId].update();
     } else {
-        chartInstances[chartId] = new Chart(ctx, {
+        const chart = new Chart(ctx, {
             type: 'line',
             data: { datasets },
             options: options
         });
+        chartInstances[chartId] = chart;
+
+        // Synchronized Hover Event Listeners
+        canvas.addEventListener('mousemove', (e) => {
+            const points = chart.getElementsAtEventForMode(e, 'index', { intersect: false }, true);
+            if (points.length > 0) {
+                const hoveredPoint = points[0];
+                const xVal = chart.data.datasets[hoveredPoint.datasetIndex].data[hoveredPoint.index].x;
+                syncHover(xVal);
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            syncHover(null);
+        });
     }
 }
 
-function formatDate(myDate) {
-    const year = myDate.getFullYear();
-    const month = (myDate.getMonth() + 1).toString().padStart(2, '0');
-    const day = myDate.getDate().toString().padStart(2, '0');
-    return `${year}-${month}-${day}`;
+// Function to trigger callout tooltip and crosshair line on all charts simultaneously
+function syncHover(xVal) {
+    activeHoverX = xVal;
+
+    Object.keys(chartInstances).forEach(id => {
+        const chart = chartInstances[id];
+
+        if (xVal === null) {
+            chart.setActiveElements([]);
+            chart.tooltip.setActiveElements([], { x: 0, y: 0 });
+            chart.draw();
+            return;
+        }
+
+        // Find nearest data point index for xVal
+        const dataset = chart.data.datasets[0];
+        if (!dataset || !dataset.data) return;
+
+        let closestIdx = 0;
+        let minDiff = Infinity;
+
+        dataset.data.forEach((pt, idx) => {
+            const diff = Math.abs(pt.x - xVal);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closestIdx = idx;
+            }
+        });
+
+        const activeElements = chart.data.datasets.map((_, dsIdx) => ({
+            datasetIndex: dsIdx,
+            index: closestIdx
+        }));
+
+        // 1. Set active elements on datasets
+        chart.setActiveElements(activeElements);
+
+        // 2. Target exact pixel position on the chart scale for tooltip tracking
+        const targetXPixel = chart.scales.x.getPixelForValue(xVal);
+        const targetYPixel = chart.scales.y.getPixelForValue(chart.data.datasets[0].data[closestIdx].y);
+
+        // 3. Set active elements for tooltip and FORCE an update so the tooltip box repositions
+        chart.tooltip.setActiveElements(activeElements, {
+            x: targetXPixel,
+            y: targetYPixel
+        });
+        chart.tooltip.update(true);
+
+        // 4. Render updated crosshair and tooltip box
+        chart.draw();
+    });
 }
 
-// Initialize Firebase and Authentication
+// Initialize Firebase Configuration
 let firebase = {
     firebaseConfig: {
         apiKey: "AIzaSyA9k81iD2mzPuLKBl76d6sdcLWvguDBzcs",
@@ -262,7 +457,7 @@ let firebase = {
         appId: "1:350263998718:web:8c1d356caa2df0da99cdaf",
         measurementId: "G-7CM04QF69W",
     },
-    initialAuthToken: null, // Set to a specific custom auth token string if needed for local testing
+    initialAuthToken: null,
     app: null,
     db: null,
     auth: null,
@@ -271,38 +466,27 @@ let firebase = {
     collectionName: null,
 };
 
- // Initialize Firebase and Authentication
-async function initializeFirebase(collectionName) 
-{
+async function initializeFirebase(collectionName) {
     try {
         firebase.collectionName = collectionName;
         firebase.app = initializeApp(firebase.firebaseConfig);
         firebase.db = getFirestore(firebase.app);
         firebase.auth = getAuth(firebase.app);
 
-        //authStatusDisplay.textContent = "Authenticating...";
-
-        // Listen for auth state changes
         onAuthStateChanged(firebase.auth, async (user) => {
             if (user) {
-                firebase.userUid = user.uid; // Still get UID for authentication check
+                firebase.userUid = user.uid;
                 firebase.isAuthReady = true;
                 console.log(`→ Firebase user ID: ${firebase.userUid}`);
                 loadFirebaseData();
             } else {
-                // Attempt to sign in
                 if (firebase.initialAuthToken) {
                     await signInWithCustomToken(firebase.auth, firebase.initialAuthToken);
                 } else {
                     try {
                         await signInAnonymously(firebase.auth);
-
                     } catch (error) {
-                        // If the promise rejects (e.g., error from Firebase), it will be caught here.
-                        const errorCode = error.code;
-                        const errorMessage = error.message;
-                        console.error("✗ Anonymous sign-in failed:", errorCode, errorMessage);
-                        // Common error codes: 'auth/operation-not-allowed'
+                        console.error("✗ Anonymous sign-in failed:", error.code, error.message);
                         return null;
                     } finally {
                         console.log(`✓ Anonymous sign-in to firebase.`);
@@ -317,24 +501,20 @@ async function initializeFirebase(collectionName)
 
 let FirebaseData = [];
 
-// Function to load and display messages from Firestore (now from a public collection)
 function loadFirebaseData() {    
     if (!firebase.isAuthReady || !firebase.userUid) {
         debug(`→ Waiting for authentication...`);
         return;
     }
 
-    // Create a query to the PUBLIC message collection, ordered by timestamp
     const messagesCollectionRef = collection(firebase.db, `artifacts/${firebase.firebaseConfig.appId}/public/data/${firebase.collectionName}`);     
-    const q = query(messagesCollectionRef); // Order by latest first
+    const q = query(messagesCollectionRef);
     
-    // Set up a real-time listener
     onSnapshot(q, (snapshot) => {
         if (snapshot.empty) {
             debug(`⚠ No data available...`);
-            return; // no data yet
+            return;
         }
-        // Process all the change. First time, it will be recorded as added
         snapshot.docChanges().forEach((change) => {
             if (change.type == 'added') {
                 let newentry = createRowDataFromChange(change);
@@ -343,164 +523,34 @@ function loadFirebaseData() {
                 FirebaseData = FirebaseData.filter(entry => entry['docID'] !== change.doc.id);
             } else if (change.type == 'modified') {
                 let newentry = createRowDataFromChange(change);
-                FirebaseData = FirebaseData.map(item => { // replace item
+                FirebaseData = FirebaseData.map(item => {
                     if (item['docID'] === change.doc.id) return newentry;
                     return item;
                 });
             }
         });
         updateCharts();
-        //console.log(`loaded FirebaseData`);
-        //console.dir(FirebaseData);
-        
     }, (error) => {
         console.error(`✗ Error fetching data: ${error}`);
     });
 }
+
 function getFirebaseData() {
     return FirebaseData;
 }
-async function replaceFirebaseData(datatosave) { // Replace entries based on the same name and date
-    if (datatosave===undefined || datatosave===null) return false; // no data to save
-    if (!firebase.isAuthReady || !firebase.userUid) {
-        console.log(`→ Waiting for authentication...`);
-        return false; // Firebase not ready. Waiting for authentication.
-    }
-    let debugcontext='';
-    try {
-        debugcontext = 'collection';
-        const messagesCollectionRef = collection(firebase.db, `artifacts/${firebase.firebaseConfig.appId}/public/data/${firebase.collectionName}`);     
-        debugcontext = 'query';
-        const q = query(
-        messagesCollectionRef,
-            ...Object.keys(datatosave)
-                .filter(key => {
-                    const k = key.toLowerCase();
-                    // Use !== to EXCLUDE the timestamp from the query (since exact timestamp matches are rare)
-                    return datatosave[key] !== undefined && k !== 'timestamp' && k !== 'time stamp' && k !== 'date' && !(datatosave[key] instanceof Timestamp)
-                })
-                .map(key => where(key, "==", datatosave[key]))
-            );                
-        debugcontext = 'getDocs';
-        const querySnapshot = await getDocs(q);
-        
-        if (!querySnapshot.empty) { // Found existing records, delete them first
-            debugcontext = 'writeBatch';
-            const batch = writeBatch(firebase.db);
-            let deletedCount = 0;
-            querySnapshot.forEach((document) => {
-                debugcontext = 'doc';
-                const docRef = doc(messagesCollectionRef, document.id);
-                console.log(`→ Deleting DocID ${document.id}: ${docRef.path}`);
-                debugcontext = 'batch.delete';
-                batch.delete(docRef);
-                deletedCount++;
-            });
 
-            // Make sure you await here!
-            debugcontext = 'batch.commit()';
-            await batch.commit();
-            console.log(`✓ Deleted ${deletedCount} documents from ${firebase.collectionName}.`);
-        }
-
-        debugcontext = 'addDoc'
-        await addDoc(messagesCollectionRef, datatosave)
-        .then((docRef) => {
-            console.log(`✓ Added DocID ${docRef.id}: ${docRef.path}`);
-        })
-        .catch((error) => {
-            console.error(`✗ Error writing data ${JSON.stringify(tmpdata)}`);
-            return false;
-        });
-    } catch (error) {
-        console.error(`✗ ERROR saving data to firebase: ${debugcontext}<BR>${error}.`);
-        return false;
-    } finally {
-
-    }
-    return true; // Successful
-}
-
-async function deleteFirebaseData(datatodelete=undefined) { // Replace entries based on the same name and date
-    if (datatodelete===undefined || datatodelete===null) return false; // no data to delete
-    if (!firebase.isAuthReady || !firebase.userUid) {
-        console.log(`→ Waiting for authentication...`);
-        return false; // Firebase not ready. Waiting for authentication.
-    }
-    let debugcontext='';
-    try {
-        debugcontext = 'collection';
-        const messagesCollectionRef = collection(firebase.db, `artifacts/${firebase.firebaseConfig.appId}/public/data/${firebase.collectionName}`);
-        let q;     
-        debugcontext = `query`;
-        q = query(
-            messagesCollectionRef,
-            ...Object.keys(datatodelete)
-                .filter(key => datatodelete[key] !== undefined) // Skip empty values
-                .map(key => where(key, "==", datatodelete[key]))
-            );                    
-        debugcontext = 'getDocs';
-        const querySnapshot = await getDocs(q);
-        
-        if (!querySnapshot.empty) { // Found existing records, delete them first
-            debugcontext = 'writeBatch';
-            const batch = writeBatch(firebase.db);
-            let deletedCount = 0;
-            querySnapshot.forEach((document) => {
-                debugcontext = 'doc';
-                const docRef = doc(messagesCollectionRef, document.id);
-                console.log(`→ Deleting DocID ${document.id}: ${docRef.path}`);
-                debugcontext = 'batch.delete()';
-                batch.delete(docRef);
-                deletedCount++;
-            });
-            // Make sure you await here!
-            debugcontext = 'batch.commit()';
-            await batch.commit();
-            console.log(`✓ Deleted ${deletedCount} documents from ${firebase.collectionName}.`);
-        } else {
-            console.log('✗ No matching records found');
-        }
-    } catch (error) {
-        console.error(`✗ ERROR saving data to firebase: ${debugcontext}<BR>${error}.`);
-        return false;
-    } finally {
-
-    }
-    return true; // Successful
-}
-async function waitForFirebaseAuth() {
-    //console.log("Waiting for Firebase authentication...");
-    return new Promise((resolve) => {
-        const checkInterval = setInterval(() => {
-            if (firebase.isAuthReady) {
-                clearInterval(checkInterval);
-                //console.log("✓ Authentication confirmed.");
-                resolve();
-            }
-        }, 500); // Check every 500ms
-    });
-}
 function createRowDataFromChange(change) {
     const row = change.doc.data();
     let newentry = { docID: change.doc.id };
 
-    // Sort keys
-    const keys = Object.keys(row).sort((a, b) => {
-        const lowerA = a.toLowerCase();
-        const lowerB = b.toLowerCase();
-        if (lowerA < lowerB) return -1;
-        if (lowerA > lowerB) return 1;
-        return 0;
-    });
+    const keys = Object.keys(row).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
-    // Fill in info
     keys.forEach(key => {
-        if (key.toLocaleLowerCase() === 'date' || key.toLocaleLowerCase() === 'timestamp' || key.toLocaleLowerCase() === 'time stamp') {
+        if (key.toLowerCase() === 'date' || key.toLowerCase() === 'timestamp' || key.toLowerCase() === 'time stamp') {
             if (row[key] instanceof Timestamp) {
                 newentry[key] = new Date(row[key].seconds * 1000 + row[key].nanoseconds / 1000000);
             } else {
-                newentry[key] = new Date(row[key]);  // (typeof row[key]) === 'string')
+                newentry[key] = new Date(row[key]);
             }
         } else if (key === 'value') {
             newentry[key] = Number(row[key]);
@@ -510,30 +560,17 @@ function createRowDataFromChange(change) {
     });
     return newentry;
 }
+
 function debug(msg) {
-    document.getElementById("debug").innerHTML = msg;
+    const debugEl = document.getElementById("debug");
+    debugEl.innerHTML = msg;
     if (msg.toLowerCase().includes('error')) {
-        document.getElementById("debug").innerHTML = `<FONT COLOR=#F00>${msg}</FONT>`;
+        debugEl.style.color = "#f87171";
     } else {
-        document.getElementById("debug").innerHTML = msg;
-        setTimeout(function() { document.getElementById("debug").innerHTML = ''; }, 5000); // Clears itself after 5 sec
+        debugEl.style.color = "#94a3b8";
+        setTimeout(() => { debugEl.innerHTML = ''; }, 5000);
     }
 }
-function sortData() {
-    childrenData = childrenData.sort((a, b) => { 
-        const nameA = a.name.toLowerCase();
-        const nameB = b.name.toLowerCase();
-        if (nameA<nameB) return -1;
-        if (nameA>nameB) return +1;
-        const measureA = a.measure.toLowerCase();
-        const measureB = b.measure.toLowerCase();
-        if (measureA<measureB) return -1;
-        if (measureA>measureB) return +1;
-        return a.date.getTime() - b.date.getTime();
-    });
-}
-
 </script>
 </body>
-
 </html>
