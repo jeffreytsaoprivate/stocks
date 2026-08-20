@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>S&P500 vs. index fund performance</title>
+<title>S&P500 vs. Index ETFs</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js"></script>
@@ -53,6 +53,15 @@
   }
   .range-btn:hover{ color: var(--text); }
   .range-btn.active{ background: var(--accent); color:#0b1710; }
+
+  .roll-toggle{ display:inline-flex; background:#131822; border:1px solid var(--panel-border); border-radius:7px; padding:2px; gap:2px; margin-bottom:8px; }
+  .roll-btn{
+    appearance:none; border:none; background:transparent; color:var(--text-dim);
+    font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600;
+    padding:5px 9px; border-radius:5px; cursor:pointer; transition: background .15s, color .15s;
+  }
+  .roll-btn:hover{ color: var(--text); }
+  .roll-btn.active{ background: var(--accent); color:#0b1710; }
 
   .ticker-row{ display:flex; gap:10px; flex-wrap:wrap; }
   .chip{
@@ -122,7 +131,7 @@
 
 <header>
   <div class="title-row">
-    <h1>S&P500 <span class="dim">vs.</span> Index ETFs performance</h1>
+    <h1>S&P500 <span class="dim">vs.</span> Index ETFs <span class="dim">performance</span></h1>
     <div id="asOf" class="mono"></div>
   </div>
   <div class="controls">
@@ -165,7 +174,7 @@
       <span class="idx">ROW 3</span>
       <div class="row-label-wrap">
         <h2>Correlation to S&P500</h2>
-        <p>Price (relative to latest) scatter against S&P500</p>
+        <p>Correlation with S&P500</p>
       </div>
     </div>
     <div class="grid3" id="scatterRow"></div>
@@ -287,8 +296,21 @@
   const datePanel = document.createElement('div');
   datePanel.className = 'panel date-panel';
   datePanel.innerHTML = `
-    <div class="panel-head"><span class="sym">Date explorer</span><span class="sub" id="dateRangeSub"></span></div>
+    <div class="panel-head">
+      <span class="sym">Date explorer</span>
+      <span class="sub" id="dateRangeSub"></span>
+    </div>
+    <div class="roll-toggle" id="rollGroup">
+      <button type="button" class="roll-btn" data-months="3">3mo beta</button>
+      <button type="button" class="roll-btn" data-months="6">6mo beta</button>
+      <button type="button" class="roll-btn" data-months="12">1yr beta</button>
+    </div>
     <div class="chart-wrap tall"><canvas id="dateChart"></canvas></div>
+    <div class="legend-row">
+      <span><i style="background:${COLORS['^GSPC']}"></i>S&P500 price (left axis)</span>
+      <span><i style="background:${COLORS['QQQ']}"></i>QQQ/S&P500 slope</span>
+      <span><i style="background:${COLORS['TQQQ']}"></i>TQQQ/S&P500 slope</span>
+    </div>
     <div class="date-hint">Click the chart to inspect a week</div>
     <div class="date-current mono" id="dateCurrent">--</div>
     <div class="date-readout" id="dateReadout"></div>
@@ -307,6 +329,14 @@
   let commonDates = [];   // dates present across all 3 symbols in the current range, ascending
   let scatterMeta = {};   // per scatter-pair lookup maps, used by the date explorer
   let selectedDate = null;
+  let rollWindowMonths = 3;  // trailing window (months) for the rolling QQQ/TQQQ-vs-S&P500 slope traces
+  let currentRange = 'all';
+
+  function subMonths(date, months){
+    const d = new Date(date.getTime());
+    d.setMonth(d.getMonth() - months);
+    return d;
+  }
 
   Chart.defaults.color = '#8996ab';
   Chart.defaults.borderColor = '#223047';
@@ -371,6 +401,30 @@
     return { slope, intercept, r2 };
   }
 
+  // At every point in `paired` (ascending by date, {date, x, y} where x/y are
+  // already normalized to each symbol's own latest price), fit an OLS slope
+  // using only the trailing `windowMonths` of points ending at that date.
+  // Returns null for a date until the window is fully covered by data (no
+  // extrapolating the window backward beyond the first available point).
+  const MIN_ROLLING_POINTS = 3;
+  function rollingSlopeSeries(paired, windowMonths){
+    const dates = paired.map(p => new Date(p.date + 'T00:00:00Z'));
+    const firstTime = dates.length ? dates[0].getTime() : null;
+    const out = [];
+    let start = 0;
+    for (let i = 0; i < paired.length; i++) {
+      const windowStart = subMonths(dates[i], windowMonths).getTime();
+      while (start < i && dates[start].getTime() < windowStart) start++;
+      // Only compute once the window's start boundary is at/after the series'
+      // earliest date — i.e. never extrapolate history we don't have.
+      const fullyCovered = firstTime !== null && windowStart >= firstTime;
+      const windowPts = paired.slice(start, i + 1);
+      const fit = fullyCovered && windowPts.length >= MIN_ROLLING_POINTS ? linregress(windowPts) : null;
+      out.push({ date: paired[i].date, slope: fit ? fit.slope : null });
+    }
+    return out;
+  }
+
   function median(vals){
     if (!vals.length) return null;
     const s = [...vals].sort((a,b) => a - b);
@@ -391,6 +445,7 @@
   }
 
   function render(range){
+    currentRange = range;
     document.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b.dataset.range === range));
 
     destroyAll(priceCharts); destroyAll(distCharts); destroyAll(scatterCharts);
@@ -574,7 +629,7 @@
         };
       });
 
-      scatterMeta[key] = { xByDate, yByDate, xLatest, yLatest, xSym, ySym };
+      scatterMeta[key] = { xByDate, yByDate, xLatest, yLatest, xSym, ySym, paired };
 
       const fit = linregress(paired);
       let fitLine = [];
@@ -663,28 +718,66 @@
     document.getElementById('dateRangeSub').textContent = commonDates.length
       ? commonDates[0] + ' \u2192 ' + commonDates[commonDates.length - 1]
       : '';
+    document.querySelectorAll('.roll-btn').forEach(b => b.classList.toggle('active', Number(b.dataset.months) === rollWindowMonths));
 
     const gspcPts = dataByRange['^GSPC'];
     const gspcLabels = gspcPts.map(p => p.date);
     const gspcPrices = gspcPts.map(p => p.price);
 
+    // Rolling trailing-window OLS slope of (symbol/latest) vs (S&P500/latest),
+    // reusing the same normalized series already built for the row-3 scatter panels.
+    function slopeDataset(pairKey, color){
+      const meta = scatterMeta[pairKey];
+      const bySlopeDate = new Map();
+      if (meta) rollingSlopeSeries(meta.paired, rollWindowMonths).forEach(pt => bySlopeDate.set(pt.date, pt.slope));
+      return gspcLabels.map(d => bySlopeDate.has(d) ? bySlopeDate.get(d) : null);
+    }
+    const qqqSlope = slopeDataset('QQQ_^GSPC');
+    const tqqqSlope = slopeDataset('TQQQ_^GSPC');
+
     dateChartInstance = new Chart(dateCtx, {
       type: 'line',
       data: {
         labels: gspcLabels,
-        datasets: [{
-          data: gspcPrices,
-          borderColor: COLORS['^GSPC'],
-          backgroundColor: COLORS['^GSPC'] + '22',
-          fill: true,
-          borderWidth: 1.6,
-          tension: 0.05,
-          pointRadius: gspcPrices.map(() => 0),
-          pointHoverRadius: 3,
-          pointBackgroundColor: gspcPrices.map(() => COLORS['^GSPC']),
-          pointBorderColor: gspcPrices.map(() => COLORS['^GSPC']),
-          pointBorderWidth: 2,
-        }]
+        datasets: [
+          {
+            label: 'S&P500 price',
+            yAxisID: 'yPrice',
+            data: gspcPrices,
+            borderColor: COLORS['^GSPC'],
+            backgroundColor: COLORS['^GSPC'] + '22',
+            fill: true,
+            borderWidth: 1.6,
+            tension: 0.05,
+            pointRadius: gspcPrices.map(() => 0),
+            pointHoverRadius: 3,
+            pointBackgroundColor: gspcPrices.map(() => COLORS['^GSPC']),
+            pointBorderColor: gspcPrices.map(() => COLORS['^GSPC']),
+            pointBorderWidth: 2,
+          },
+          {
+            label: 'QQQ/S&P500 slope',
+            yAxisID: 'ySlope',
+            data: qqqSlope,
+            borderColor: COLORS['QQQ'],
+            backgroundColor: 'transparent',
+            borderWidth: 1.4,
+            pointRadius: 0,
+            tension: 0.15,
+            spanGaps: false,
+          },
+          {
+            label: 'TQQQ/S&P500 slope',
+            yAxisID: 'ySlope',
+            data: tqqqSlope,
+            borderColor: COLORS['TQQQ'],
+            backgroundColor: 'transparent',
+            borderWidth: 1.4,
+            tension: 0.15,
+            pointRadius: 0,
+            spanGaps: false,
+          }
+        ]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
@@ -696,15 +789,29 @@
         plugins: {
           legend: { display: false },
           tooltip: {
+            filter: item => item.raw !== null && item.raw !== undefined,
             callbacks: {
               title: items => items[0]?.label || '',
-              label: ctx => disp('^GSPC') + ': $' + ctx.parsed.y.toFixed(2),
+              label: ctx => ctx.datasetIndex === 0
+                ? disp('^GSPC') + ': $' + ctx.parsed.y.toFixed(2)
+                : ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2),
             }
           }
         },
         scales: {
           x: { ticks: { maxTicksLimit: 5, color:'#8996ab' }, grid: { color:'#1c2534' } },
-          y: { ticks: { color:'#8996ab' }, grid: { color:'#1c2534' } },
+          yPrice: {
+            position: 'left',
+            ticks: { color:'#8996ab' },
+            grid: { color:'#1c2534' },
+            title: { display: true, text: 'S&P500 price', color:'#8996ab' },
+          },
+          ySlope: {
+            position: 'right',
+            ticks: { color:'#8996ab' },
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'rolling slope', color:'#8996ab' },
+          },
         }
       }
     });
@@ -790,6 +897,13 @@
     const btn = e.target.closest('.range-btn');
     if (!btn) return;
     render(btn.dataset.range);
+  });
+
+  document.getElementById('rollGroup').addEventListener('click', e => {
+    const btn = e.target.closest('.roll-btn');
+    if (!btn) return;
+    rollWindowMonths = Number(btn.dataset.months);
+    render(currentRange); // rebuild with the new rolling window, same date range
   });
 
   document.getElementById('dateBack').addEventListener('click', () => {
