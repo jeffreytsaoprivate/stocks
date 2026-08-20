@@ -158,11 +158,11 @@
   Data source: Yahoo Finance via <span class="mono">stocks.js</span> · Weekly interval · Growth uses linear interpolation between bars, never extrapolation beyond the earliest available date.
 </footer>
 
-<script src="stock-data.js"></script>
+<script src="SP500.js"></script>
 <script>
 (function(){
   if (typeof STOCK_DATA === 'undefined') {
-    document.body.innerHTML = '<p style="padding:40px;color:#e2687e;font-family:monospace">stock-data.js not found or failed to load. Run "node download-data.js" first, then serve this folder together with stock-data.js.</p>';
+    document.body.innerHTML = '<p style="padding:40px;color:#e2687e;font-family:monospace">SP500.js not found or failed to load. Run "node SP500.js" first, then serve this folder together with SP500.js.</p>';
     return;
   }
 
