@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Index vs. Leverage — ^GSPC / QQQ / TQQQ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg: #10141b;
+    --panel: #171d27;
+    --panel-border: #262f3d;
+    --text: #e7ebf2;
+    --text-dim: #8996ab;
+    --grid: #223047;
+    --gspc: #5fb0e0;
+    --qqq: #e0a85f;
+    --tqqq: #e05f7e;
+    --accent: #4fd1a5;
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+  }
+  .num, .mono{ font-family:'IBM Plex Mono', ui-monospace, monospace; }
+
+  header{
+    padding: 28px clamp(16px,4vw,40px) 18px;
+    border-bottom: 1px solid var(--panel-border);
+    display:flex; flex-direction:column; gap:18px;
+    position: sticky; top:0; z-index:10;
+    background: linear-gradient(180deg, var(--bg) 80%, rgba(16,20,27,0.85));
+    backdrop-filter: blur(6px);
+  }
+  .title-row{ display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+  h1{
+    margin:0; font-size: clamp(20px, 2.4vw, 28px); font-weight:700; letter-spacing:-0.01em;
+  }
+  h1 .dim{ color:var(--text-dim); font-weight:500; }
+  #asOf{ color:var(--text-dim); font-size:12.5px; }
+
+  .controls{ display:flex; align-items:center; gap:22px; flex-wrap:wrap; }
+  .range-group{ display:inline-flex; background:var(--panel); border:1px solid var(--panel-border); border-radius:8px; padding:3px; gap:2px; }
+  .range-btn{
+    appearance:none; border:none; background:transparent; color:var(--text-dim);
+    font-family:inherit; font-size:13px; font-weight:600; letter-spacing:.01em;
+    padding:7px 14px; border-radius:6px; cursor:pointer; transition: background .15s, color .15s;
+  }
+  .range-btn:hover{ color: var(--text); }
+  .range-btn.active{ background: var(--accent); color:#0b1710; }
+
+  .ticker-row{ display:flex; gap:10px; flex-wrap:wrap; }
+  .chip{
+    display:flex; align-items:baseline; gap:8px;
+    background:var(--panel); border:1px solid var(--panel-border); border-radius:8px;
+    padding:8px 12px; min-width: 150px;
+  }
+  .chip .swatch{ width:8px; height:8px; border-radius:50%; flex:none; }
+  .chip .sym{ font-weight:700; font-size:13px; }
+  .chip .px{ font-size:13px; margin-left:auto; }
+  .chip .chg{ font-size:12px; font-weight:600; }
+  .up{ color:#59d19a; } .down{ color:#e2687e; }
+
+  main{ padding: 22px clamp(16px,4vw,40px) 60px; display:flex; flex-direction:column; gap:34px; }
+
+  .row-label{
+    display:flex; align-items:center; gap:10px; margin-bottom:12px;
+  }
+  .row-label .idx{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--bg); background:var(--text-dim);
+    border-radius:4px; padding:2px 6px; font-weight:600;
+  }
+  .row-label h2{ font-size:15px; margin:0; font-weight:600; }
+  .row-label p{ margin:2px 0 0; font-size:12.5px; color:var(--text-dim); }
+  .row-label-wrap{ display:flex; flex-direction:column; }
+
+  .grid3{ display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; }
+  .grid2{ display:grid; grid-template-columns: repeat(2, 1fr); gap:16px; }
+  @media (max-width: 980px){ .grid3{ grid-template-columns: 1fr; } .grid2{ grid-template-columns:1fr; } }
+
+  .panel{
+    background:var(--panel); border:1px solid var(--panel-border); border-radius:10px;
+    padding:14px 14px 10px;
+    display:flex; flex-direction:column;
+  }
+  .panel-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+  .panel-head .sym{ font-weight:700; font-size:13.5px; }
+  .panel-head .sub{ font-size:11.5px; color:var(--text-dim); font-family:'IBM Plex Mono',monospace; }
+  .chart-wrap{ position:relative; height:230px; }
+  .chart-wrap.tall{ height:260px; }
+
+  .legend-row{ display:flex; gap:14px; flex-wrap:wrap; margin-top:8px; font-size:11px; color:var(--text-dim); font-family:'IBM Plex Mono',monospace; }
+  .legend-row span{ display:inline-flex; align-items:center; gap:5px; }
+  .legend-row i{ width:9px; height:9px; border-radius:2px; display:inline-block; }
+
+  footer{ padding: 0 clamp(16px,4vw,40px) 30px; color:var(--text-dim); font-size:11.5px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title-row">
+    <h1>Index <span class="dim">vs.</span> Leverage <span class="dim">— ^GSPC / QQQ / TQQQ</span></h1>
+    <div id="asOf" class="mono"></div>
+  </div>
+  <div class="controls">
+    <div class="range-group" id="rangeGroup">
+      <button class="range-btn" data-range="all">All data</button>
+      <button class="range-btn" data-range="10y">Last 10 years</button>
+      <button class="range-btn" data-range="5y">Last 5 years</button>
+      <button class="range-btn" data-range="1y">Last year</button>
+    </div>
+    <div class="ticker-row" id="tickerRow"></div>
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="row-label">
+      <span class="idx">ROW 1</span>
+      <div class="row-label-wrap">
+        <h2>Weekly price</h2>
+        <p>Adjusted close, weekly bars, over the selected window.</p>
+      </div>
+    </div>
+    <div class="grid3" id="priceRow"></div>
+  </section>
+
+  <section>
+    <div class="row-label">
+      <span class="idx">ROW 2</span>
+      <div class="row-label-wrap">
+        <h2>Distribution of trailing growth</h2>
+        <p>Histogram of trailing 1y / 3y / 5y / 10y returns measured at every weekly timepoint in the selected window (interpolated, never extrapolated).</p>
+      </div>
+    </div>
+    <div class="grid3" id="distRow"></div>
+  </section>
+
+  <section>
+    <div class="row-label">
+      <span class="idx">ROW 3</span>
+      <div class="row-label-wrap">
+        <h2>Correlation to ^GSPC</h2>
+        <p>Weekly price scatter against ^GSPC with an ordinary-least-squares best-fit line, over the selected window.</p>
+      </div>
+    </div>
+    <div class="grid2" id="scatterRow"></div>
+  </section>
+</main>
+
+<footer>
+  Data source: Yahoo Finance via <span class="mono">stocks.js</span> · Weekly interval · Growth uses linear interpolation between bars, never extrapolation beyond the earliest available date.
+</footer>
+
+<script src="stock-data.js"></script>
+<script>
+(function(){
+  if (typeof STOCK_DATA === 'undefined') {
+    document.body.innerHTML = '<p style="padding:40px;color:#e2687e;font-family:monospace">stock-data.js not found or failed to load. Run "node download-data.js" first, then serve this folder together with stock-data.js.</p>';
+    return;
+  }
+
+  const SYMBOLS = STOCK_DATA.symbols; // ["^GSPC","QQQ","TQQQ"]
+  const COLORS = { '^GSPC': '#5fb0e0', 'QQQ': '#e0a85f', 'TQQQ': '#e05f7e' };
+  const LABELS = { '^GSPC': 'S&P 500', 'QQQ': 'QQQ', 'TQQQ': 'TQQQ' };
+  const DURATIONS = STOCK_DATA.growthDurationsYears; // [1,3,5,10]
+  const DUR_COLORS = { 1: '#4fd1a5', 3: '#5fb0e0', 5: '#e0a85f', 10: '#e05f7e' };
+
+  // Parse dates once
+  const series = {};
+  SYMBOLS.forEach(sym => {
+    series[sym] = STOCK_DATA.series[sym].map(p => ({
+      ...p,
+      d: new Date(p.date + 'T00:00:00Z'),
+    }));
+  });
+
+  const allDates = SYMBOLS.flatMap(s => series[s].map(p => p.d.getTime()));
+  const latestTime = Math.max(...allDates);
+  const latestDate = new Date(latestTime);
+  document.getElementById('asOf').textContent =
+    'through ' + latestDate.toISOString().slice(0,10) + ' · generated ' + STOCK_DATA.generatedAt.slice(0,10);
+
+  function cutoffFor(range) {
+    if (range === 'all') return null;
+    const years = { '10y': 10, '5y': 5, '1y': 1 }[range];
+    const d = new Date(latestDate.getTime());
+    d.setFullYear(d.getFullYear() - years);
+    return d;
+  }
+
+  function filtered(sym, range) {
+    const cutoff = cutoffFor(range);
+    if (!cutoff) return series[sym];
+    return series[sym].filter(p => p.d >= cutoff);
+  }
+
+  // ---------- build static DOM shells ----------
+  const priceRow = document.getElementById('priceRow');
+  const distRow = document.getElementById('distRow');
+  const scatterRow = document.getElementById('scatterRow');
+  const tickerRow = document.getElementById('tickerRow');
+
+  const priceCtx = {}, distCtx = {};
+  SYMBOLS.forEach(sym => {
+    const p1 = document.createElement('div');
+    p1.className = 'panel';
+    p1.innerHTML = `
+      <div class="panel-head"><span class="sym" style="color:${COLORS[sym]}">${sym}</span><span class="sub" id="pxSub-${cssId(sym)}"></span></div>
+      <div class="chart-wrap"><canvas id="priceChart-${cssId(sym)}"></canvas></div>`;
+    priceRow.appendChild(p1);
+    priceCtx[sym] = p1.querySelector('canvas').getContext('2d');
+
+    const p2 = document.createElement('div');
+    p2.className = 'panel';
+    p2.innerHTML = `
+      <div class="panel-head"><span class="sym" style="color:${COLORS[sym]}">${sym}</span><span class="sub">trailing growth %</span></div>
+      <div class="chart-wrap"><canvas id="distChart-${cssId(sym)}"></canvas></div>
+      <div class="legend-row">
+        ${DURATIONS.map(y => `<span><i style="background:${DUR_COLORS[y]}"></i>${y}y</span>`).join('')}
+      </div>`;
+    distRow.appendChild(p2);
+    distCtx[sym] = p2.querySelector('canvas').getContext('2d');
+
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `<span class="swatch" style="background:${COLORS[sym]}"></span>
+      <span class="sym">${sym}</span>
+      <span class="px mono" id="chipPx-${cssId(sym)}">--</span>
+      <span class="chg mono" id="chipChg-${cssId(sym)}">--</span>`;
+    tickerRow.appendChild(chip);
+  });
+
+  const scatterPairs = [['QQQ','^GSPC'], ['TQQQ','^GSPC']];
+  const scatterCtx = {};
+  scatterPairs.forEach(([y, x]) => {
+    const key = y + '_' + x;
+    const p = document.createElement('div');
+    p.className = 'panel';
+    p.innerHTML = `
+      <div class="panel-head">
+        <span class="sym"><span style="color:${COLORS[y]}">${y}</span> <span style="color:var(--text-dim)">vs</span> <span style="color:${COLORS[x]}">${x}</span></span>
+        <span class="sub" id="fitEq-${cssId(key)}"></span>
+      </div>
+      <div class="chart-wrap tall"><canvas id="scatterChart-${cssId(key)}"></canvas></div>`;
+    scatterRow.appendChild(p);
+    scatterCtx[key] = p.querySelector('canvas').getContext('2d');
+  });
+
+  function cssId(s){ return s.replace(/[^a-zA-Z0-9]/g,''); }
+
+  // ---------- chart instances (rebuilt on range change) ----------
+  let priceCharts = {}, distCharts = {}, scatterCharts = {};
+
+  Chart.defaults.color = '#8996ab';
+  Chart.defaults.borderColor = '#223047';
+  Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+  Chart.defaults.font.size = 10.5;
+
+  function destroyAll(map){ Object.values(map).forEach(c => c && c.destroy()); }
+
+  function fmtPct(x){
+    if (x === null || x === undefined || Number.isNaN(x)) return '--';
+    return (x >= 0 ? '+' : '') + (x*100).toFixed(1) + '%';
+  }
+
+  function buildHistogram(values, binCount){
+    if (values.length === 0) return { bins: [], counts: [] };
+    const min = Math.min(...values), max = Math.max(...values);
+    if (min === max) return { bins: [min], counts: [values.length] };
+    const width = (max - min) / binCount;
+    const counts = new Array(binCount).fill(0);
+    values.forEach(v => {
+      let idx = Math.floor((v - min) / width);
+      if (idx >= binCount) idx = binCount - 1;
+      if (idx < 0) idx = 0;
+      counts[idx]++;
+    });
+    const bins = counts.map((_, i) => min + width * (i + 0.5));
+    return { bins, counts, min, max, width };
+  }
+
+  function linregress(points){
+    // points: [{x,y}], ordinary least squares
+    const n = points.length;
+    if (n < 2) return null;
+    let sx=0, sy=0, sxx=0, sxy=0, syy=0;
+    points.forEach(p => { sx+=p.x; sy+=p.y; sxx+=p.x*p.x; sxy+=p.x*p.y; syy+=p.y*p.y; });
+    const denom = n*sxx - sx*sx;
+    if (denom === 0) return null;
+    const slope = (n*sxy - sx*sy) / denom;
+    const intercept = (sy - slope*sx) / n;
+    const yPred = points.map(p => slope*p.x + intercept);
+    const yMean = sy / n;
+    const ssRes = points.reduce((acc,p,i) => acc + Math.pow(p.y - yPred[i], 2), 0);
+    const ssTot = points.reduce((acc,p) => acc + Math.pow(p.y - yMean, 2), 0);
+    const r2 = ssTot === 0 ? 1 : 1 - ssRes/ssTot;
+    return { slope, intercept, r2 };
+  }
+
+  function render(range){
+    document.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b.dataset.range === range));
+
+    destroyAll(priceCharts); destroyAll(distCharts); destroyAll(scatterCharts);
+    priceCharts = {}; distCharts = {}; scatterCharts = {};
+
+    const dataByRange = {};
+    SYMBOLS.forEach(sym => { dataByRange[sym] = filtered(sym, range); });
+
+    // ---- Row 1: price lines ----
+    SYMBOLS.forEach(sym => {
+      const pts = dataByRange[sym];
+      const first = pts[0], last = pts[pts.length - 1];
+      const rangeChg = first && last ? (last.price - first.price) / first.price : null;
+      document.getElementById('pxSub-' + cssId(sym)).textContent =
+        last ? last.price.toFixed(2) + ' (' + fmtPct(rangeChg) + ')' : '';
+
+      document.getElementById('chipPx-' + cssId(sym)).textContent = last ? last.price.toFixed(2) : '--';
+      const chgEl = document.getElementById('chipChg-' + cssId(sym));
+      chgEl.textContent = fmtPct(rangeChg);
+      chgEl.className = 'chg mono ' + (rangeChg >= 0 ? 'up' : 'down');
+
+      priceCharts[sym] = new Chart(priceCtx[sym], {
+        type: 'line',
+        data: {
+          labels: pts.map(p => p.date),
+          datasets: [{
+            data: pts.map(p => p.price),
+            borderColor: COLORS[sym],
+            backgroundColor: COLORS[sym] + '22',
+            fill: true,
+            pointRadius: 0,
+            borderWidth: 1.6,
+            tension: 0.05,
+          }]
+        },
+        options: chartOptsBase({
+          xTicks: 5,
+          yTickCallback: v => v.toFixed(0),
+          tooltipLabel: ctx => LABELS[sym] + ': ' + ctx.parsed.y.toFixed(2),
+        })
+      });
+    });
+
+    // ---- Row 2: growth distributions ----
+    SYMBOLS.forEach(sym => {
+      const pts = dataByRange[sym];
+      const datasets = DURATIONS.map(y => {
+        const vals = pts.map(p => p['growth' + y + 'y']).filter(v => v !== null && v !== undefined);
+        const hist = buildHistogram(vals, 16);
+        return {
+          label: y + 'y',
+          data: hist.bins.map((b, i) => ({ x: b*100, y: hist.counts[i] })),
+          backgroundColor: DUR_COLORS[y] + '99',
+          borderColor: DUR_COLORS[y],
+          borderWidth: 1,
+          barThickness: 'flex',
+          _n: vals.length,
+        };
+      });
+
+      distCharts[sym] = new Chart(distCtx[sym], {
+        type: 'bar',
+        data: { datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'nearest', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: items => (items[0].raw.x).toFixed(1) + '% growth',
+                label: ctx => ctx.dataset.label + ': ' + ctx.raw.y + ' weeks',
+              }
+            }
+          },
+          scales: {
+            x: { type: 'linear', title: { display: true, text: 'trailing growth (%)', color:'#8996ab' }, grid: { color:'#1c2534' } },
+            y: { title: { display: true, text: 'weeks', color:'#8996ab' }, grid: { color:'#1c2534' }, beginAtZero: true },
+          }
+        }
+      });
+    });
+
+    // ---- Row 3: scatter + best fit ----
+    scatterPairs.forEach(([ySym, xSym]) => {
+      const key = ySym + '_' + xSym;
+      const xPts = new Map(dataByRange[xSym].map(p => [p.date, p.price]));
+      const paired = dataByRange[ySym]
+        .filter(p => xPts.has(p.date))
+        .map(p => ({ x: xPts.get(p.date), y: p.price }));
+
+      const fit = linregress(paired);
+      let fitLine = [];
+      if (fit && paired.length) {
+        const xs = paired.map(p => p.x);
+        const xMin = Math.min(...xs), xMax = Math.max(...xs);
+        fitLine = [{ x: xMin, y: fit.slope*xMin + fit.intercept }, { x: xMax, y: fit.slope*xMax + fit.intercept }];
+      }
+
+      const eqEl = document.getElementById('fitEq-' + cssId(key));
+      eqEl.textContent = fit
+        ? `y = ${fit.slope.toFixed(3)}x ${fit.intercept >= 0 ? '+' : '-'} ${Math.abs(fit.intercept).toFixed(2)}  ·  R\u00B2=${fit.r2.toFixed(3)}`
+        : 'insufficient data';
+
+      scatterCharts[key] = new Chart(scatterCtx[key], {
+        type: 'scatter',
+        data: {
+          datasets: [
+            {
+              label: LABELS[ySym] + ' vs ' + LABELS[xSym],
+              data: paired,
+              backgroundColor: COLORS[ySym] + '55',
+              borderColor: COLORS[ySym],
+              pointRadius: 2,
+              pointHoverRadius: 4,
+            },
+            {
+              label: 'best fit',
+              type: 'line',
+              data: fitLine,
+              borderColor: '#e7ebf2',
+              borderWidth: 1.5,
+              borderDash: [5,3],
+              pointRadius: 0,
+              fill: false,
+            }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => ctx.datasetIndex === 0
+                  ? `${xSym}: ${ctx.parsed.x.toFixed(2)}  ${ySym}: ${ctx.parsed.y.toFixed(2)}`
+                  : 'fit'
+              }
+            }
+          },
+          scales: {
+            x: { title: { display: true, text: xSym + ' price', color:'#8996ab' }, grid: { color:'#1c2534' } },
+            y: { title: { display: true, text: ySym + ' price', color:'#8996ab' }, grid: { color:'#1c2534' } },
+          }
+        }
+      });
+    });
+  }
+
+  function chartOptsBase({ xTicks, yTickCallback, tooltipLabel }){
+    return {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: tooltipLabel } },
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: xTicks, color:'#8996ab' }, grid: { color:'#1c2534' } },
+        y: { ticks: { callback: yTickCallback, color:'#8996ab' }, grid: { color:'#1c2534' } },
+      }
+    };
+  }
+
+  document.getElementById('rangeGroup').addEventListener('click', e => {
+    const btn = e.target.closest('.range-btn');
+    if (!btn) return;
+    render(btn.dataset.range);
+  });
+
+  render('all');
+})();
+</script>
+</body>
+</html>
