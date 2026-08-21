@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
+<!-- saved from url=(0054)https://jeffreytsaoprivate.github.io/stocks/SP500.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>S&P500 vs. Index ETFs</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<title>S&amp;P500 vs. Index ETFs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com/">
+<link href="./S&amp;P500 vs. Index ETFs_files/css2" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js"></script>
 <style>
   :root{
@@ -131,7 +131,7 @@
 
 <header>
   <div class="title-row">
-    <h1>S&P500 <span class="dim">vs.</span> Index ETFs <span class="dim">performance</span></h1>
+    <h1>S&amp;P500 <span class="dim">vs.</span> Index ETFs <span class="dim">performance</span></h1>
     <div id="asOf" class="mono"></div>
   </div>
   <div class="controls">
@@ -173,8 +173,8 @@
     <div class="row-label">
       <span class="idx">ROW 3</span>
       <div class="row-label-wrap">
-        <h2>Correlation to S&P500</h2>
-        <p>Correlation with S&P500</p>
+        <h2>Correlation to S&amp;P500</h2>
+        <p>Correlation with S&amp;P500</p>
       </div>
     </div>
     <div class="grid3" id="scatterRow"></div>
@@ -308,8 +308,8 @@
     <div class="chart-wrap tall"><canvas id="dateChart"></canvas></div>
     <div class="legend-row">
       <span><i style="background:${COLORS['^GSPC']}"></i>S&P500 price (left axis)</span>
-      <span><i style="background:${COLORS['QQQ']}"></i>QQQ/S&P500 slope</span>
-      <span><i style="background:${COLORS['TQQQ']}"></i>TQQQ/S&P500 slope</span>
+      <span><i style="background:${COLORS['QQQ']}"></i>QQQ/S&P500 beta</span>
+      <span><i style="background:${COLORS['TQQQ']}"></i>TQQQ/S&P500 beta</span>
     </div>
     <div class="date-hint">Click the chart to inspect a week</div>
     <div class="date-current mono" id="dateCurrent">--</div>
@@ -329,7 +329,7 @@
   let commonDates = [];   // dates present across all 3 symbols in the current range, ascending
   let scatterMeta = {};   // per scatter-pair lookup maps, used by the date explorer
   let selectedDate = null;
-  let rollWindowMonths = 3;  // trailing window (months) for the rolling QQQ/TQQQ-vs-S&P500 slope traces
+  let rollWindowMonths = 3;  // trailing window (months) for the rolling QQQ/TQQQ-vs-S&P500 beta traces
   let currentRange = 'all';
 
   function subMonths(date, months){
@@ -401,26 +401,56 @@
     return { slope, intercept, r2 };
   }
 
-  // At every point in `paired` (ascending by date, {date, x, y} where x/y are
-  // already normalized to each symbol's own latest price), fit an OLS slope
-  // using only the trailing `windowMonths` of points ending at that date.
-  // Returns null for a date until the window is fully covered by data (no
-  // extrapolating the window backward beyond the first available point).
+  // At every point in `paired` (ascending by date, with raw prices rawX/rawY),
+  // compute weekly returns directly from raw price, then roll a trailing
+  // `windowMonths` covariance(y,x)/variance(x) beta ending at each date.
+  // Returns null until the window is fully covered by data (no extrapolating
+  // the window backward beyond the first available return).
+  //
+  // Beta = Cov(returns_Y, returns_X) / Var(returns_X) — expanded via the
+  // sum-of-products shortcut: (n·Σxy − Σx·Σy) / (n·Σx² − (Σx)²). Because the
+  // window only ever slides forward (one point enters, at most one leaves per
+  // step), Σx/Σy/Σx²/Σxy are maintained incrementally in O(1) per step —
+  // add the entering point, subtract any point(s) that fall out of the
+  // window — rather than re-summed over the whole window from scratch each
+  // time. That makes the whole rolling series O(n) instead of O(n · window
+  // size); at a 1-year (≈52-week) window that's roughly a 50x reduction in
+  // the number of arithmetic operations.
   const MIN_ROLLING_POINTS = 3;
-  function rollingSlopeSeries(paired, windowMonths){
-    const dates = paired.map(p => new Date(p.date + 'T00:00:00Z'));
-    const firstTime = dates.length ? dates[0].getTime() : null;
+  function rollingBetaSeries(paired, windowMonths){
+    const retX = [], retY = [], retDates = [], retDateStrs = [];
+    for (let i = 1; i < paired.length; i++) {
+      const x0 = paired[i-1].rawX, x1 = paired[i].rawX;
+      const y0 = paired[i-1].rawY, y1 = paired[i].rawY;
+      if (x0 && y0 !== undefined) {
+        retX.push((x1 - x0) / x0);
+        retY.push((y1 - y0) / y0);
+        retDates.push(new Date(paired[i].date + 'T00:00:00Z'));
+        retDateStrs.push(paired[i].date);
+      }
+    }
+    const firstRetTime = retDates.length ? retDates[0].getTime() : null;
     const out = [];
     let start = 0;
-    for (let i = 0; i < paired.length; i++) {
-      const windowStart = subMonths(dates[i], windowMonths).getTime();
-      while (start < i && dates[start].getTime() < windowStart) start++;
+    let n = 0, sumX = 0, sumY = 0, sumXX = 0, sumXY = 0; // running window sums
+    for (let i = 0; i < retDates.length; i++) {
+      sumX += retX[i]; sumY += retY[i]; sumXX += retX[i]*retX[i]; sumXY += retX[i]*retY[i]; n++;
+
+      const windowStart = subMonths(retDates[i], windowMonths).getTime();
+      while (start < i && retDates[start].getTime() < windowStart) {
+        sumX -= retX[start]; sumY -= retY[start]; sumXX -= retX[start]*retX[start]; sumXY -= retX[start]*retY[start]; n--;
+        start++;
+      }
+
       // Only compute once the window's start boundary is at/after the series'
-      // earliest date — i.e. never extrapolate history we don't have.
-      const fullyCovered = firstTime !== null && windowStart >= firstTime;
-      const windowPts = paired.slice(start, i + 1);
-      const fit = fullyCovered && windowPts.length >= MIN_ROLLING_POINTS ? linregress(windowPts) : null;
-      out.push({ date: paired[i].date, slope: fit ? fit.slope : null });
+      // earliest return date — i.e. never extrapolate history we don't have.
+      const fullyCovered = firstRetTime !== null && windowStart >= firstRetTime;
+      let beta = null;
+      if (fullyCovered && n >= MIN_ROLLING_POINTS) {
+        const denom = n*sumXX - sumX*sumX;
+        beta = denom !== 0 ? (n*sumXY - sumX*sumY) / denom : null;
+      }
+      out.push({ date: retDateStrs[i], beta });
     }
     return out;
   }
@@ -724,16 +754,17 @@
     const gspcLabels = gspcPts.map(p => p.date);
     const gspcPrices = gspcPts.map(p => p.price);
 
-    // Rolling trailing-window OLS slope of (symbol/latest) vs (S&P500/latest),
-    // reusing the same normalized series already built for the row-3 scatter panels.
-    function slopeDataset(pairKey, color){
+    // Rolling trailing-window beta = Cov(returns_symbol, returns_S&P500) / Var(returns_S&P500),
+    // reusing the same normalized series already built for the row-3 scatter panels
+    // (normalization is a per-series constant, so it doesn't affect returns/beta).
+    function betaDataset(pairKey){
       const meta = scatterMeta[pairKey];
-      const bySlopeDate = new Map();
-      if (meta) rollingSlopeSeries(meta.paired, rollWindowMonths).forEach(pt => bySlopeDate.set(pt.date, pt.slope));
-      return gspcLabels.map(d => bySlopeDate.has(d) ? bySlopeDate.get(d) : null);
+      const byBetaDate = new Map();
+      if (meta) rollingBetaSeries(meta.paired, rollWindowMonths).forEach(pt => byBetaDate.set(pt.date, pt.beta));
+      return gspcLabels.map(d => byBetaDate.has(d) ? byBetaDate.get(d) : null);
     }
-    const qqqSlope = slopeDataset('QQQ_^GSPC');
-    const tqqqSlope = slopeDataset('TQQQ_^GSPC');
+    const qqqBeta = betaDataset('QQQ_^GSPC');
+    const tqqqBeta = betaDataset('TQQQ_^GSPC');
 
     dateChartInstance = new Chart(dateCtx, {
       type: 'line',
@@ -756,9 +787,9 @@
             pointBorderWidth: 2,
           },
           {
-            label: 'QQQ/S&P500 slope',
-            yAxisID: 'ySlope',
-            data: qqqSlope,
+            label: 'QQQ/S&P500 beta',
+            yAxisID: 'yBeta',
+            data: qqqBeta,
             borderColor: COLORS['QQQ'],
             backgroundColor: 'transparent',
             borderWidth: 1.4,
@@ -767,9 +798,9 @@
             spanGaps: false,
           },
           {
-            label: 'TQQQ/S&P500 slope',
-            yAxisID: 'ySlope',
-            data: tqqqSlope,
+            label: 'TQQQ/S&P500 beta',
+            yAxisID: 'yBeta',
+            data: tqqqBeta,
             borderColor: COLORS['TQQQ'],
             backgroundColor: 'transparent',
             borderWidth: 1.4,
@@ -806,11 +837,11 @@
             grid: { color:'#1c2534' },
             title: { display: true, text: 'S&P500 price', color:'#8996ab' },
           },
-          ySlope: {
+          yBeta: {
             position: 'right',
             ticks: { color:'#8996ab' },
             grid: { drawOnChartArea: false },
-            title: { display: true, text: 'rolling slope', color:'#8996ab' },
+            title: { display: true, text: 'rolling beta', color:'#8996ab' },
           },
         }
       }
@@ -918,5 +949,4 @@
   render('all');
 })();
 </script>
-</body>
 </html>
