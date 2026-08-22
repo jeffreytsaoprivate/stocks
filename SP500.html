@@ -184,23 +184,9 @@
 <footer>
   Data source: Yahoo Finance
 </footer>
-
+  
+<script src = 'https://jeffreytsaoprivate.github.io/stocks/SP500.js?v=' + Date.now();></script>
 <script>
-function loadLatest(fileName) {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  const dateStamp = `${year}${month}${day}`; // E.g., "20260821"
-  
-  const script = document.createElement('script');
-  script.src = `${fileName}?d=${dateStamp}`;
-  script.async = true;
-  
-  document.head.appendChild(script);
-}
-loadLatest('https://jeffreytsaoprivate.github.io/stocks/SP500.js');
-
 (function(){
   if (typeof STOCK_DATA === 'undefined') {
     document.body.innerHTML = '<p style="padding:40px;color:#e2687e;font-family:monospace">Could not load data from https://jeffreytsaoprivate.github.io/stocks/SP500.js — check your internet connection and reload.</p>';
