@@ -1,5 +1,5 @@
+
 <!DOCTYPE html>
-<!-- saved from url=(0054)https://jeffreytsaoprivate.github.io/stocks/SP500.html -->
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -78,7 +78,7 @@
   main{ padding: 22px clamp(16px,4vw,40px) 60px; display:flex; flex-direction:column; gap:34px; }
 
   .row-label{
-    display:flex; align-items:center; gap:10px; margin-bottom:12px;
+    display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;
   }
   .row-label .idx{
     font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--bg); background:var(--text-dim);
@@ -87,6 +87,23 @@
   .row-label h2{ font-size:15px; margin:0; font-weight:600; }
   .row-label p{ margin:2px 0 0; font-size:12.5px; color:var(--text-dim); }
   .row-label-wrap{ display:flex; flex-direction:column; }
+
+  .horizon-control{ display:flex; align-items:center; gap:10px; background:var(--panel); border:1px solid var(--panel-border); border-radius:8px; padding:8px 14px; margin:0 0 16px; width:fit-content; }
+  .horizon-control label{ font-size:11.5px; color:var(--text-dim); font-family:'IBM Plex Mono',monospace; white-space:nowrap; }
+  .horizon-control input[type=range]{
+    -webkit-appearance:none; appearance:none; width:150px; height:4px; border-radius:2px;
+    background:linear-gradient(90deg, var(--accent) 0%, var(--accent) var(--fill,30%), #263143 var(--fill,30%), #263143 100%);
+    outline:none; cursor:pointer;
+  }
+  .horizon-control input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none; width:15px; height:15px; border-radius:50%;
+    background:var(--accent); cursor:pointer; border:2px solid #0b1710; margin-top:0;
+  }
+  .horizon-control input[type=range]::-moz-range-thumb{
+    width:15px; height:15px; border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid #0b1710;
+  }
+  .horizon-control input[type=range]::-moz-range-track{ background:#263143; height:4px; border-radius:2px; }
+  .horizon-control .horizon-val{ font-size:13px; font-weight:700; color:var(--accent); min-width:28px; text-align:right; }
 
   .grid3{ display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; }
   .grid2{ display:grid; grid-template-columns: repeat(2, 1fr); gap:16px; }
@@ -162,8 +179,17 @@
     <div class="row-label">
       <span class="idx">ROW 2</span>
       <div class="row-label-wrap">
-        <h2>Annualized return probability</h2>
-        <p>Histogram of compounded annual growth rate (CAGR) over trailing 1y / 3y / 5y / 10y windows</p>
+        <h2>CAGR over different time windows</h2>
+        <p id="row2Sub">Trailing 3y CAGR</p>
+      </div>
+    </div>
+    <div class="horizon-control">
+      <label for="horizonSlider">Time horizon</label>
+      <input type="range" id="horizonSlider" min="1" max="10" step="1" value="3">
+      <span class="horizon-val mono" id="horizonVal">3y</span>
+      <div class="roll-toggle" id="distModeGroup" style="margin:0 0 0 10px;">
+        <button type="button" class="roll-btn active" data-mode="normalized">% of windows</button>
+        <button type="button" class="roll-btn" data-mode="counts">Counts</button>
       </div>
     </div>
     <div class="grid3" id="distRow"></div>
@@ -185,15 +211,33 @@
   Data source: Yahoo Finance
 </footer>
   
-<script src = 'https://jeffreytsaoprivate.github.io/stocks/SP500.js?v=' + Date.now();></script>
+<!-- <script src = 'https://jeffreytsaoprivate.github.io/stocks/SP500.js?v=' + Date.now();></script> -->
 <script>
-(function(){
-  if (typeof STOCK_DATA === 'undefined') {
-    document.body.innerHTML = '<p style="padding:40px;color:#e2687e;font-family:monospace">Could not load data from https://jeffreytsaoprivate.github.io/stocks/SP500.js — check your internet connection and reload.</p>';
-    return;
-  }
+const loadScript = function loadScript(url, callback) {
+    // Add timestamp to prevent caching on refresh
+    const cacheBuster = '?v=' + new Date().getTime();
+    const script = document.createElement('script');
+    
+    script.src = url + cacheBuster;
+    script.async = true;
+    
+    script.onload = function() {
+        if (callback) callback();
+    };
+    
+    document.head.appendChild(script);
+};
+
+// Usage
+
+
+function main(){
   if (typeof Chart === 'undefined') {
     document.body.innerHTML = '<p style="padding:40px;color:#e2687e;font-family:monospace">Chart.js failed to load from https://cdn.jsdelivr.net — check your internet connection and reload.</p>';
+    return;
+  }
+  if (typeof STOCK_DATA === 'undefined') {
+    document.body.innerHTML = '<p style="padding:40px;color:#e2687e;font-family:monospace">Could not load data from https://jeffreytsaoprivate.github.io/stocks/SP500.js — check your internet connection and reload.</p>';
     return;
   }
 
@@ -201,9 +245,20 @@
   const COLORS = { '^GSPC': '#5fb0e0', 'QQQ': '#e0a85f', 'TQQQ': '#e05f7e' };
   const LABELS = { '^GSPC': 'S&P500', 'QQQ': 'QQQ', 'TQQQ': 'TQQQ' };
   const disp = sym => LABELS[sym] || sym;
-  const DURATIONS = STOCK_DATA.growthDurationsYears; // [1,3,5,10]
-  const DUR_COLORS = { 1: '#4fd1a5', 3: '#5fb0e0', 5: '#e0a85f', 10: '#e05f7e' };
   const GRAD_OLD = '#3d4a63'; // muted slate = oldest point; fades toward each symbol's own color at the latest point
+
+  // Row 2: each trailing-CAGR observation can belong to several of these
+  // recency windows at once -- e.g. a window that ended 2 months ago counts
+  // toward "Last 1y", "Last 3y", "Last 5y", "Last 10y" AND "All data". They
+  // are deliberately overlapping/cumulative (each is a superset of the
+  // shorter ones), unlike a mutually-exclusive bucketing scheme.
+  const RECENCY_DEFS = [
+    { key: '1y',  label: 'Last 1y',  color: '#4fd1a5', years: 1 },
+    { key: '3y',  label: 'Last 3y',  color: '#5fb0e0', years: 3 },
+    { key: '5y',  label: 'Last 5y',  color: '#e0a85f', years: 5 },
+    { key: '10y', label: 'Last 10y', color: '#e05f7e', years: 10 },
+    { key: 'all', label: 'All data', color: '#a78bfa', years: Infinity },
+  ];
 
   // Parse dates once
   const series = {};
@@ -253,10 +308,10 @@
     const p2 = document.createElement('div');
     p2.className = 'panel';
     p2.innerHTML = `
-      <div class="panel-head"><span class="sym" style="color:${COLORS[sym]}">${disp(sym)}</span><span class="sub">annualized return %</span></div>
+      <div class="panel-head"><span class="sym" style="color:${COLORS[sym]}">${disp(sym)}</span><span class="sub" id="distSub-${cssId(sym)}"></span></div>
       <div class="chart-wrap"><canvas id="distChart-${cssId(sym)}"></canvas></div>
       <div class="legend-row">
-        ${DURATIONS.map(y => `<span><i style="background:${DUR_COLORS[y]}"></i><span id="med-${cssId(sym)}-${y}">${y}y</span></span>`).join('')}
+        ${RECENCY_DEFS.map(r => `<span><i style="background:${r.color}"></i><span id="cat-${cssId(sym)}-${r.key}">${r.label}</span></span>`).join('')}
       </div>`;
     distRow.appendChild(p2);
     distCtx[sym] = p2.querySelector('canvas').getContext('2d');
@@ -331,6 +386,8 @@
   let selectedDate = null;
   let rollWindowMonths = 3;  // trailing window (months) for the rolling QQQ/TQQQ-vs-S&P500 beta traces
   let currentRange = 'all';
+  let currentHorizonYears = 3;  // Row 2 time-horizon slider, independent of currentRange
+  let distMode = 'normalized';  // Row 2 y-axis mode: 'normalized' (% of windows) or 'counts' (raw count)
 
   function subMonths(date, months){
     const d = new Date(date.getTime());
@@ -342,6 +399,34 @@
   Chart.defaults.borderColor = '#223047';
   Chart.defaults.font.family = "'IBM Plex Mono', monospace";
   Chart.defaults.font.size = 10.5;
+
+  // Draws a full-height white line at x=0. Accepts either options.plugins.
+  // zeroLine.value (a numeric position on a linear scale) or .index (a
+  // category-scale tick index), so it redraws correctly wherever it's used,
+  // and automatically lands in the right spot whenever a chart is rebuilt
+  // (e.g. when the horizon slider changes).
+  const zeroLinePlugin = {
+    id: 'zeroLine',
+    afterDatasetsDraw(chart, _args, opts){
+      if (!opts) return;
+      const xScale = chart.scales.x, yScale = chart.scales.y;
+      if (!xScale || !yScale) return;
+      let x;
+      if (opts.value !== undefined && opts.value !== null) x = xScale.getPixelForValue(opts.value);
+      else if (opts.index !== undefined && opts.index !== null && opts.index >= 0) x = xScale.getPixelForValue(opts.index);
+      else return;
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x, yScale.top);
+      ctx.lineTo(x, yScale.bottom);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+  Chart.register(zeroLinePlugin);
 
   function destroyAll(map){ Object.values(map).forEach(c => c && c.destroy()); }
 
@@ -478,8 +563,8 @@
     currentRange = range;
     document.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b.dataset.range === range));
 
-    destroyAll(priceCharts); destroyAll(distCharts); destroyAll(scatterCharts);
-    priceCharts = {}; distCharts = {}; scatterCharts = {};
+    destroyAll(priceCharts); destroyAll(scatterCharts);
+    priceCharts = {}; scatterCharts = {};
     if (dateChartInstance) { dateChartInstance.destroy(); dateChartInstance = null; }
 
     const dataByRange = {};
@@ -544,93 +629,6 @@
           yMin: priceYBounds[sym].min,
           yMax: priceYBounds[sym].max,
         })
-      });
-    });
-
-    // ---- Row 2: annualized (compounded) return distributions (shared X-axis extent) ----
-    // Stored growth{y}y is total (cumulative) trailing return over y years;
-    // convert to CAGR: (1 + totalReturn)^(1/y) - 1.
-    const cagrBySymDur = {};
-    let cagrMin = Infinity, cagrMax = -Infinity;
-    SYMBOLS.forEach(sym => {
-      cagrBySymDur[sym] = {};
-      DURATIONS.forEach(y => {
-        const vals = dataByRange[sym]
-          .map(p => p['growth' + y + 'y'])
-          .filter(v => v !== null && v !== undefined && v > -1)
-          .map(v => Math.pow(1 + v, 1 / y) - 1);
-        cagrBySymDur[sym][y] = vals;
-        vals.forEach(v => { if (v < cagrMin) cagrMin = v; if (v > cagrMax) cagrMax = v; });
-      });
-    });
-    let distXMin = -10, distXMax = 10, distXStep = 5;
-    if (cagrMin <= cagrMax) {
-      const pad = (cagrMax - cagrMin) * 0.05 || 0.01;
-      const rawMin = (cagrMin - pad) * 100;
-      const rawMax = (cagrMax + pad) * 100;
-      const nice = niceAxisBounds(rawMin, rawMax, 8);
-      distXMin = nice.min; distXMax = nice.max; distXStep = nice.step;
-    }
-
-    SYMBOLS.forEach(sym => {
-      const datasets = DURATIONS.map(y => {
-        const vals = cagrBySymDur[sym][y];
-        const hist = buildHistogram(vals, 40, cagrMin, cagrMax);
-        const total = vals.length;
-
-        const medEl = document.getElementById('med-' + cssId(sym) + '-' + y);
-        if (medEl) {
-          const med = median(vals);
-          medEl.textContent = med === null ? y + 'y: --' : y + 'y median ' + fmtPct(med);
-        }
-
-        return {
-          label: y + 'y',
-          data: hist.bins.map((b, i) => ({ x: b*100, y: total ? hist.counts[i] / total : 0 })),
-          backgroundColor: DUR_COLORS[y] + '3d',
-          borderColor: DUR_COLORS[y],
-          borderWidth: 1.6,
-          pointRadius: 0,
-          tension: 0.35,
-          fill: true, // each area fills to the x-axis independently (non-stacked)
-          _n: total,
-        };
-      });
-
-      distCharts[sym] = new Chart(distCtx[sym], {
-        type: 'line',
-        data: { datasets },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          interaction: { mode: 'nearest', intersect: false },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                title: items => (items[0].raw.x).toFixed(1) + '% CAGR',
-                label: ctx => ctx.dataset.label + ': ' + (ctx.raw.y * 100).toFixed(1) + '% of weeks',
-              }
-            }
-          },
-          scales: {
-            x: {
-              type: 'linear', min: distXMin, max: distXMax,
-              title: { display: true, text: 'annualized return, CAGR (%)', color:'#8996ab' },
-              ticks: { stepSize: distXStep, color:'#8996ab' },
-              grid: {
-                color: ctx => ctx.tick && ctx.tick.value === 0 ? '#e7ebf2' : '#1c2534',
-                lineWidth: ctx => ctx.tick && ctx.tick.value === 0 ? 2 : 1,
-              },
-            },
-            y: {
-              stacked: false,
-              title: { display: true, text: 'probability', color:'#8996ab' },
-              grid: { color:'#1c2534' },
-              beginAtZero: true,
-              ticks: { callback: v => (v * 100).toFixed(0) + '%' },
-            },
-          }
-        }
       });
     });
 
@@ -850,6 +848,174 @@
     selectDateByIndex(commonDates.length - 1); // default to the latest date in range
   }
 
+  // ---- Row 2: annualized return distribution, stacked by recency ----
+  // Independent of the top-of-page range buttons: always uses each symbol's
+  // full history, because the whole point is to show how counts split
+  // across "last 1y / 1-3y / 3-5y / 5-10y / 10y+" -- restricting to a short
+  // range would empty out most of those buckets.
+  const MS_PER_YEAR = 365.25 * 24 * 3600 * 1000;
+  const NEAREST_TOL_MS = 5 * 24 * 3600 * 1000; // ~half a week, since data is weekly
+
+  // Nearest data point to targetTime for `sym` (binary search; series[sym]
+  // is ascending by date). Returns null if nothing is within tolerance,
+  // e.g. when there isn't enough history to look back `horizonYears`.
+  function nearestSeriesPoint(sym, targetTime){
+    const arr = series[sym];
+    if (!arr.length) return null;
+    const lastT = arr[arr.length - 1].d.getTime();
+    if (targetTime <= arr[0].d.getTime()) {
+      return Math.abs(arr[0].d.getTime() - targetTime) <= NEAREST_TOL_MS ? arr[0] : null;
+    }
+    if (targetTime >= lastT) {
+      return Math.abs(lastT - targetTime) <= NEAREST_TOL_MS ? arr[arr.length - 1] : null;
+    }
+    let lo = 0, hi = arr.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (arr[mid].d.getTime() < targetTime) lo = mid + 1; else hi = mid;
+    }
+    const candB = arr[lo], candA = arr[lo - 1];
+    let best = candB;
+    if (candA && Math.abs(candA.d.getTime() - targetTime) < Math.abs(candB.d.getTime() - targetTime)) best = candA;
+    return Math.abs(best.d.getTime() - targetTime) <= NEAREST_TOL_MS ? best : null;
+  }
+
+  // Trailing CAGR ending at every date in symbol's full history, computed
+  // directly from raw prices so any integer horizon 1-10y works (not just
+  // the 1/3/5/10y windows the data happens to precompute).
+  function trailingCAGR(sym, horizonYears){
+    const arr = series[sym];
+    const out = [];
+    arr.forEach(p => {
+      const targetDate = new Date(p.d.getTime());
+      targetDate.setFullYear(targetDate.getFullYear() - horizonYears);
+      const past = nearestSeriesPoint(sym, targetDate.getTime());
+      if (!past || !(past.price > 0)) return;
+      const totalReturn = (p.price - past.price) / past.price;
+      if (totalReturn <= -1) return;
+      const cagr = Math.pow(1 + totalReturn, 1 / horizonYears) - 1;
+      out.push({ date: p.date, d: p.d, cagr });
+    });
+    return out;
+  }
+
+  function renderRow2(horizonYears){
+    destroyAll(distCharts);
+    distCharts = {};
+
+    document.getElementById('horizonVal').textContent = horizonYears + 'y';
+    const sub = document.getElementById('row2Sub');
+    if (sub) sub.textContent = 'Trailing ' + horizonYears + 'y CAGR';
+
+    const perSym = {};
+    let cagrMin = Infinity, cagrMax = -Infinity;
+    SYMBOLS.forEach(sym => {
+      const pts = trailingCAGR(sym, horizonYears);
+      perSym[sym] = pts;
+      pts.forEach(p => { if (p.cagr < cagrMin) cagrMin = p.cagr; if (p.cagr > cagrMax) cagrMax = p.cagr; });
+    });
+    if (!(cagrMin <= cagrMax)) { cagrMin = -0.1; cagrMax = 0.1; }
+
+    // Pick a "nice" bin width, then force bin CENTERS onto multiples of it
+    // (k = round(value/w), center = k*w, edges = center +/- w/2). That
+    // guarantees k=0 is its own bin spanning [-w/2, +w/2) -- one interval
+    // symmetric around 0 -- and every value lands in exactly one bin.
+    const stepCandidates = [0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50];
+    const rawStep = ((cagrMax - cagrMin) * 100) / 30 || 1;
+    const w = stepCandidates.find(c => c >= rawStep) || stepCandidates[stepCandidates.length - 1];
+
+    let kMin = Math.floor((cagrMin * 100) / w - 0.5);
+    let kMax = Math.ceil((cagrMax * 100) / w + 0.5);
+    kMin = Math.min(kMin, 0);
+    kMax = Math.max(kMax, 0);
+    const ks = [];
+    for (let k = kMin; k <= kMax; k++) ks.push(k);
+
+    // Tick spacing for axis labels, independent of the (finer) bin width.
+    const spanK = kMax - kMin || 1;
+    const tickStepK = Math.max(1, Math.round(spanK / 8));
+
+    SYMBOLS.forEach(sym => {
+      const pts = perSym[sym];
+      const subEl = document.getElementById('distSub-' + cssId(sym));
+      if (subEl) subEl.textContent = pts.length + ' trailing ' + horizonYears + 'y windows';
+
+      const datasets = RECENCY_DEFS.map(def => {
+        const subset = pts.filter(p => {
+          const diffYears = (latestDate.getTime() - p.d.getTime()) / MS_PER_YEAR;
+          return diffYears <= def.years;
+        });
+        const total = subset.length;
+        const counts = new Array(ks.length).fill(0);
+        subset.forEach(p => {
+          let k = Math.round((p.cagr * 100) / w);
+          if (k < kMin) k = kMin;
+          if (k > kMax) k = kMax;
+          counts[k - kMin]++;
+        });
+
+        // Normalized so heights sum to 1 (100%) per category -- each
+        // overlapping area's total "mass" is the same, regardless of how
+        // many windows fall in that recency slice.
+        const med = median(subset.map(p => p.cagr));
+        const legendEl = document.getElementById('cat-' + cssId(sym) + '-' + def.key);
+        if (legendEl) legendEl.textContent = def.label + (med === null ? '' : ' ' + fmtPct(med));
+
+        return {
+          label: def.label,
+          data: ks.map((k, i) => ({ x: k * w, y: distMode === 'counts' ? counts[i] : (total ? counts[i] / total : 0) })),
+          backgroundColor: def.color + '30',
+          borderColor: def.color,
+          borderWidth: 1.6,
+          pointRadius: 0,
+          tension: 0.35,
+          fill: true, // each area fills to the x-axis independently (overlapping, non-stacked)
+          _n: total,
+        };
+      });
+
+      distCharts[sym] = new Chart(distCtx[sym], {
+        type: 'line',
+        data: { datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'nearest', intersect: false },
+          plugins: {
+            legend: { display: false },
+            zeroLine: { value: 0 },
+            tooltip: {
+              callbacks: {
+                title: items => items.length ? (items[0].raw.x).toFixed(1) + '% CAGR' : '',
+                label: ctx => distMode === 'counts'
+                  ? ctx.dataset.label + ': ' + ctx.raw.y + ' window' + (ctx.raw.y === 1 ? '' : 's')
+                  : ctx.dataset.label + ': ' + (ctx.raw.y * 100).toFixed(1) + '% of windows',
+              }
+            }
+          },
+          scales: {
+            x: {
+              type: 'linear', min: kMin * w, max: kMax * w,
+              title: { display: true, text: 'CAGR (%)', color:'#8996ab' },
+              ticks: { stepSize: tickStepK * w, color:'#8996ab' },
+              grid: { color:'#1c2534' },
+            },
+            y: {
+              stacked: false,
+              title: { display: true, text: distMode === 'counts' ? 'count' : 'probability', color:'#8996ab' },
+              grid: { color:'#1c2534' },
+              beginAtZero: true,
+              ticks: {
+                callback: v => distMode === 'counts' ? v : (v * 100).toFixed(0) + '%',
+                color:'#8996ab',
+                precision: distMode === 'counts' ? 0 : undefined,
+              },
+            },
+          }
+        }
+      });
+    });
+  }
+
   function selectDateByIndex(idx){
     if (!commonDates.length) return;
     idx = Math.max(0, Math.min(commonDates.length - 1, idx));
@@ -946,7 +1112,28 @@
     selectDateByIndex((idx === -1 ? commonDates.length - 1 : idx) + 1);
   });
 
+  document.getElementById('horizonSlider').addEventListener('input', e => {
+    currentHorizonYears = Number(e.target.value);
+    renderRow2(currentHorizonYears);
+  });
+
+  document.getElementById('distModeGroup').addEventListener('click', e => {
+    const btn = e.target.closest('.roll-btn');
+    if (!btn) return;
+    distMode = btn.dataset.mode;
+    document.querySelectorAll('#distModeGroup .roll-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === distMode));
+    renderRow2(currentHorizonYears);
+  });
+
   render('all');
-})();
+  renderRow2(currentHorizonYears);
+}
+
+if (typeof STOCK_DATA === 'undefined') {
+  loadScript('https://jeffreytsaoprivate.github.io/stocks/SP500.js', main);
+} else {
+  main();
+}
+
 </script>
 </html>
