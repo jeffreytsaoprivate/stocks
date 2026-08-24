@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
@@ -142,9 +141,45 @@
   .date-nudge button:hover{ color:var(--text); border-color:#3a475f; }
 
   footer{ padding: 0 clamp(16px,4vw,40px) 30px; color:var(--text-dim); font-size:11.5px; }
+
+  .loading-overlay{
+    position:fixed; inset:0; z-index:1000;
+    display:flex; align-items:center; justify-content:center;
+    background: rgba(10,13,18,0.92);
+    backdrop-filter: blur(3px);
+    transition: opacity .4s ease;
+  }
+  .loading-overlay.hidden{ opacity:0; pointer-events:none; }
+  .loading-box{
+    background:var(--panel); border:1px solid var(--panel-border); border-radius:12px;
+    padding:30px 34px; width:min(380px, 86vw);
+    display:flex; flex-direction:column; align-items:center; gap:14px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.45);
+  }
+  .loading-spinner{
+    width:34px; height:34px; border-radius:50%; flex:none;
+    border:3px solid #263143; border-top-color:var(--accent);
+    animation: loading-spin 0.9s linear infinite;
+  }
+  @keyframes loading-spin{ to{ transform:rotate(360deg); } }
+  .loading-title{ font-weight:700; font-size:15px; }
+  .loading-status{ font-size:13px; color:var(--text); text-align:center; min-height:18px; }
+  .loading-progress-track{ width:100%; height:6px; border-radius:3px; background:#1c2534; overflow:hidden; }
+  .loading-progress-fill{ height:100%; width:2%; background:var(--accent); border-radius:3px; transition:width .35s ease; }
+  .loading-detail{ font-size:11px; color:var(--text-dim); font-family:'IBM Plex Mono',monospace; text-align:center; min-height:14px; }
 </style>
 </head>
 <body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="loading-spinner" id="loadingSpinner"></div>
+    <div class="loading-title">Loading market data</div>
+    <div class="loading-status" id="loadingStatus">Connecting to data source&hellip;</div>
+    <div class="loading-progress-track"><div class="loading-progress-fill" id="loadingProgressFill"></div></div>
+    <div class="loading-detail" id="loadingDetail"></div>
+  </div>
+</div>
 
 <header>
   <div class="title-row">
@@ -171,6 +206,10 @@
         <h2>Price</h2>
         <p>Adjusted close</p>
       </div>
+      <div class="roll-toggle" id="yScaleModeGroup" style="margin-left:auto;">
+        <button type="button" class="roll-btn active" data-yscale="matched">Matched Y</button>
+        <button type="button" class="roll-btn" data-yscale="individual">Individual Y</button>
+      </div>
     </div>
     <div class="grid3" id="priceRow"></div>
   </section>
@@ -188,7 +227,7 @@
       <input type="range" id="horizonSlider" min="1" max="10" step="1" value="3">
       <span class="horizon-val mono" id="horizonVal">3y</span>
       <div class="roll-toggle" id="distModeGroup" style="margin:0 0 0 10px;">
-        <button type="button" class="roll-btn active" data-mode="normalized">% of windows</button>
+        <button type="button" class="roll-btn active" data-mode="normalized">%</button>
         <button type="button" class="roll-btn" data-mode="counts">Counts</button>
       </div>
     </div>
@@ -213,18 +252,99 @@
   
 <!-- <script src = 'https://jeffreytsaoprivate.github.io/stocks/SP500.js?v=' + Date.now();></script> -->
 <script>
+// ---------------------------------------------------------------------------
+// Loading-overlay stage config. Tweak percentages / pause durations / labels
+// here without touching the call sites further down.
+//
+// Phase 1 (network download) is event-driven — we don't know how long the
+// download will take, so DOWNLOAD_STAGE/PARSED_STAGE are just fixed status
+// text + a percentage to show while we wait for the real script.onload event.
+//
+// Phase 2 (CALC_STAGE_CONFIG, used inside main()) is a fixed sequence run by
+// runLoadingStages() below. Each entry is:
+//   pct:      progress-bar percentage to jump to when this stage begins
+//   pauseMs:  how long to wait — letting the browser paint the status text —
+//             before running this stage's `work` (or moving to the next
+//             stage, if there's no work). This is NOT how long the work
+//             itself takes; it's just breathing room for the repaint before
+//             we block the main thread again.
+//   status / detail: filled in per-stage where the array is built (some are
+//             static strings, some — like dataset stats — depend on the
+//             parsed data and are filled in dynamically in main()).
+// ---------------------------------------------------------------------------
+const DOWNLOAD_STAGE = { pct: 10, status: 'Downloading dataset file…' };
+const PARSED_STAGE = { pct: 30, status: 'Data file loaded — parsing records…', pauseMs: 30 };
+const CALC_STAGE_CONFIG = {
+  datasetInfo:   { pct: 40, pauseMs: 100, status: 'Dataset loaded' },
+  buildRow1And3: { pct: 70, pauseMs: 100, status: 'Building price & correlation charts…' },
+  buildRow2:     { pct: 80, pauseMs: 100, status: 'Computing CAGR windows & distributions…'},
+  finishing:     { pct: 95, pauseMs: 20 , status: 'Finishing up…'},
+  done:          { pct: 100, pauseMs: 250, status: 'Done' },
+};
+
+function setLoadingStage(status, pct, detail){
+    const statusEl = document.getElementById('loadingStatus');
+    const fillEl = document.getElementById('loadingProgressFill');
+    const detailEl = document.getElementById('loadingDetail');
+    if (statusEl && status !== undefined) statusEl.textContent = status;
+    if (fillEl && pct !== undefined && pct !== null) fillEl.style.width = Math.max(2, Math.min(100, pct)) + '%';
+    if (detailEl) detailEl.textContent = detail || '';
+}
+function hideLoadingOverlay(){
+    const el = document.getElementById('loadingOverlay');
+    if (!el) return;
+    el.classList.add('hidden');
+    setTimeout(() => el.remove(), 450);
+}
+
+// Runs an ordered list of { status, detail, pct, pauseMs, work } stages:
+// show the stage's text/percentage, wait pauseMs (so it actually paints),
+// run its `work` (if any — a synchronous function), then move to the next
+// stage. Calls onComplete once every stage has run.
+function runLoadingStages(stages, onComplete){
+    let i = 0;
+    function next(){
+        if (i >= stages.length) { if (onComplete) onComplete(); return; }
+        const stage = stages[i++];
+        setLoadingStage(stage.status, stage.pct, stage.detail);
+        setTimeout(() => {
+            if (stage.work) stage.work();
+            next();
+        }, stage.pauseMs ?? 0);
+    }
+    next();
+}
+
 const loadScript = function loadScript(url, callback) {
     // Add timestamp to prevent caching on refresh
     const cacheBuster = '?v=' + new Date().getTime();
     const script = document.createElement('script');
-    
+
     script.src = url + cacheBuster;
     script.async = true;
-    
+
+    setLoadingStage(DOWNLOAD_STAGE.status, DOWNLOAD_STAGE.pct, 'Connecting…');
+    const startTime = Date.now();
+    const tick = setInterval(() => {
+        const secs = ((Date.now() - startTime) / 1000).toFixed(0);
+        setLoadingStage(DOWNLOAD_STAGE.status, DOWNLOAD_STAGE.pct, secs + 's elapsed — larger histories take longer');
+    }, 1000);
+
     script.onload = function() {
-        if (callback) callback();
+        clearInterval(tick);
+        setLoadingStage(PARSED_STAGE.status, PARSED_STAGE.pct);
+        // Small delay so the browser can paint the status update before the
+        // (synchronous) parsing + chart-building work below begins.
+        setTimeout(() => { if (callback) callback(); }, PARSED_STAGE.pauseMs);
     };
-    
+
+    script.onerror = function() {
+        clearInterval(tick);
+        setLoadingStage('Failed to load dataset', 100, 'Check your connection and reload the page.');
+        const spinner = document.getElementById('loadingSpinner');
+        if (spinner) { spinner.style.borderTopColor = '#e2687e'; spinner.style.animation = 'none'; }
+    };
+
     document.head.appendChild(script);
 };
 
@@ -274,6 +394,31 @@ function main(){
   const latestDate = new Date(latestTime);
   document.getElementById('asOf').textContent =
     'through ' + latestDate.toISOString().slice(0,10) + ' · generated ' + STOCK_DATA.generatedAt.slice(0,10);
+
+  const totalRows = SYMBOLS.reduce((acc, s) => acc + series[s].length, 0);
+  const primaryRows = series['^GSPC'] ? series['^GSPC'].length : Math.round(totalRows / SYMBOLS.length);
+  // Built now (real dataset stats are known), but not run until the very end
+  // of main() via runLoadingStages() — see CALC_STAGE_CONFIG at the top of
+  // this script for the percentages/pauses.
+  const CALC_STAGES = [
+    {
+      ...CALC_STAGE_CONFIG.datasetInfo,
+      status: CALC_STAGE_CONFIG.datasetInfo.status + ' — through ' + latestDate.toISOString().slice(0,10),
+      detail: primaryRows.toLocaleString() + ' trading days · ' + SYMBOLS.length + ' symbols · ' + totalRows.toLocaleString() + ' data points',
+    },
+    {
+      ...CALC_STAGE_CONFIG.buildRow1And3,
+      status: CALC_STAGE_CONFIG.buildRow1And3.status,
+      work: () => render('all'), // row 1 price charts + row 3 scatter/beta/date-explorer
+    },
+    {
+      ...CALC_STAGE_CONFIG.buildRow2,
+      status: CALC_STAGE_CONFIG.buildRow2.status,
+      work: () => renderRow2(currentHorizonYears), // the heaviest step: CAGR across every horizon x recency window
+    },
+    { ...CALC_STAGE_CONFIG.finishing, status:  CALC_STAGE_CONFIG.finishing.status },
+    { ...CALC_STAGE_CONFIG.done, status: CALC_STAGE_CONFIG.done.status },
+  ];
 
   function cutoffFor(range) {
     if (range === 'all') return null;
@@ -388,6 +533,7 @@ function main(){
   let currentRange = 'all';
   let currentHorizonYears = 3;  // Row 2 time-horizon slider, independent of currentRange
   let distMode = 'normalized';  // Row 2 y-axis mode: 'normalized' (% of windows) or 'counts' (raw count)
+  let yScaleMode = 'matched';  // Row 1 y-axis mode: 'matched' (padded to shared ratio) or 'individual' (each panel's own min/max)
 
   function subMonths(date, months){
     const d = new Date(date.getTime());
@@ -559,6 +705,60 @@ function main(){
     return { min: Math.floor(min / step) * step, max: Math.ceil(max / step) * step, step };
   }
 
+  // Per-panel Y-axis scaling. In 'matched' mode: find each panel's own
+  // max/min price ratio, take the largest ratio across the 3 panels
+  // (MaxRatio), then pad each panel's axis outward so its own axis ratio
+  // matches MaxRatio too (a panel whose data barely moves gets extra
+  // headroom instead of filling the whole plot height, so panels are
+  // visually comparable):
+  //   Ratio2 = MaxRatio / (Max/Min)   [ >= 1 for every panel but the widest ]
+  //   axis = [ Min/sqrt(Ratio2), Max*sqrt(Ratio2) ]
+  // In 'individual' mode: each panel is scaled tightly to its own data
+  // extent with a small padding margin.
+  function computePriceYBounds(dataByRange){
+    const priceStats = {};
+    let maxRatio = 0;
+    SYMBOLS.forEach(sym => {
+      const prices = dataByRange[sym].map(p => p.price);
+      const mn = prices.length ? Math.min(...prices) : 0;
+      const mx = prices.length ? Math.max(...prices) : 1;
+      const ratio = mn > 0 ? mx / mn : 1;
+      priceStats[sym] = { min: mn, max: mx, ratio };
+      if (ratio > maxRatio) maxRatio = ratio;
+    });
+    const bounds = {};
+    SYMBOLS.forEach(sym => {
+      const { min: mn, max: mx, ratio } = priceStats[sym];
+      if (yScaleMode === 'individual') {
+        const pad = (mx - mn) * 0.08 || Math.abs(mx) * 0.05 || 1;
+        bounds[sym] = { min: mn - pad, max: mx + pad };
+        return;
+      }
+      const ratio2 = ratio > 0 ? maxRatio / ratio : 1;
+      const factor = Math.sqrt(ratio2) || 1;
+      let axisMin = mn / factor, axisMax = mx * factor;
+      if (!(axisMax > axisMin)) { axisMin = mn; axisMax = mx; } // safety fallback, shouldn't trigger in practice
+      bounds[sym] = { min: axisMin, max: axisMax };
+    });
+    return bounds;
+  }
+
+  // Lightweight path for the Y-axis-mode toggle: only recomputes bounds and
+  // updates the existing price chart scales in place (no destroy/rebuild,
+  // no re-running the row-3 scatter/beta/date-explorer work render() does).
+  function applyYScaleMode(){
+    const dataByRange = {};
+    SYMBOLS.forEach(sym => { dataByRange[sym] = filtered(sym, currentRange); });
+    const priceYBounds = computePriceYBounds(dataByRange);
+    SYMBOLS.forEach(sym => {
+      const chart = priceCharts[sym];
+      if (!chart) return;
+      chart.options.scales.y.min = priceYBounds[sym].min;
+      chart.options.scales.y.max = priceYBounds[sym].max;
+      chart.update('none');
+    });
+  }
+
   function render(range){
     currentRange = range;
     document.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b.dataset.range === range));
@@ -571,30 +771,7 @@ function main(){
     SYMBOLS.forEach(sym => { dataByRange[sym] = filtered(sym, range); });
 
     // ---- Row 1: price lines ----
-    // Per-panel Y-axis scaling: find each panel's own max/min price ratio,
-    // take the largest ratio across the 3 panels (MaxRatio), then pad each
-    // panel's axis so its own ratio scales toward MaxRatio:
-    //   Ratio2 = (Max/Min) / MaxRatio
-    //   axis = [ Min/sqrt(Ratio2), Max*sqrt(Ratio2) ]
-    const priceStats = {};
-    let maxRatio = 0;
-    SYMBOLS.forEach(sym => {
-      const prices = dataByRange[sym].map(p => p.price);
-      const mn = prices.length ? Math.min(...prices) : 0;
-      const mx = prices.length ? Math.max(...prices) : 1;
-      const ratio = mn > 0 ? mx / mn : 1;
-      priceStats[sym] = { min: mn, max: mx, ratio };
-      if (ratio > maxRatio) maxRatio = ratio;
-    });
-    const priceYBounds = {};
-    SYMBOLS.forEach(sym => {
-      const { min: mn, max: mx, ratio } = priceStats[sym];
-      const ratio2 = maxRatio > 0 ? ratio / maxRatio : 1;
-      const factor = Math.sqrt(ratio2) || 1;
-      let axisMin = mn / factor, axisMax = mx * factor;
-      if (!(axisMax > axisMin)) { axisMin = mn; axisMax = mx; } // safety fallback, shouldn't trigger in practice
-      priceYBounds[sym] = { min: axisMin, max: axisMax };
-    });
+    const priceYBounds = computePriceYBounds(dataByRange);
 
     SYMBOLS.forEach(sym => {
       const pts = dataByRange[sym];
@@ -746,7 +923,7 @@ function main(){
     document.getElementById('dateRangeSub').textContent = commonDates.length
       ? commonDates[0] + ' \u2192 ' + commonDates[commonDates.length - 1]
       : '';
-    document.querySelectorAll('.roll-btn').forEach(b => b.classList.toggle('active', Number(b.dataset.months) === rollWindowMonths));
+    document.querySelectorAll('#rollGroup .roll-btn').forEach(b => b.classList.toggle('active', Number(b.dataset.months) === rollWindowMonths));
 
     const gspcPts = dataByRange['^GSPC'];
     const gspcLabels = gspcPts.map(p => p.date);
@@ -921,7 +1098,8 @@ function main(){
     // guarantees k=0 is its own bin spanning [-w/2, +w/2) -- one interval
     // symmetric around 0 -- and every value lands in exactly one bin.
     const stepCandidates = [0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50];
-    const rawStep = ((cagrMax - cagrMin) * 100) / 30 || 1;
+    const approxNumSteps = 50;
+    const rawStep = ((cagrMax - cagrMin) * 100) / approxNumSteps || 1;
     const w = stepCandidates.find(c => c >= rawStep) || stepCandidates[stepCandidates.length - 1];
 
     let kMin = Math.floor((cagrMin * 100) / w - 0.5);
@@ -987,8 +1165,8 @@ function main(){
               callbacks: {
                 title: items => items.length ? (items[0].raw.x).toFixed(1) + '% CAGR' : '',
                 label: ctx => distMode === 'counts'
-                  ? ctx.dataset.label + ': ' + ctx.raw.y + ' window' + (ctx.raw.y === 1 ? '' : 's')
-                  : ctx.dataset.label + ': ' + (ctx.raw.y * 100).toFixed(1) + '% of windows',
+                  ? ctx.dataset.label + ': ' + ctx.raw.y + ' count' + (ctx.raw.y === 1 ? '' : 's')
+                  : ctx.dataset.label + ': ' + (ctx.raw.y * 100).toFixed(1) + '%',
               }
             }
           },
@@ -1117,16 +1295,24 @@ function main(){
     renderRow2(currentHorizonYears);
   });
 
+  document.getElementById('yScaleModeGroup').addEventListener('click', e => {
+    const btn = e.target.closest('.roll-btn');
+    if (!btn) return;
+    yScaleMode = btn.dataset.yscale;
+    document.querySelectorAll('#yScaleModeGroup .roll-btn').forEach(b => b.classList.toggle('active', b.dataset.yscale === yScaleMode));
+    applyYScaleMode(); // only updates row 1's Y bounds in place -- no need to rebuild row 3's scatter/beta/date-explorer charts
+  });
+
   document.getElementById('distModeGroup').addEventListener('click', e => {
     const btn = e.target.closest('.roll-btn');
     if (!btn) return;
     distMode = btn.dataset.mode;
+    console.log(`HERE: ${distMode}`);
     document.querySelectorAll('#distModeGroup .roll-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === distMode));
     renderRow2(currentHorizonYears);
   });
 
-  render('all');
-  renderRow2(currentHorizonYears);
+  runLoadingStages(CALC_STAGES, hideLoadingOverlay);
 }
 
 if (typeof STOCK_DATA === 'undefined') {
